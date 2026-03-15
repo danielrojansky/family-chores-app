@@ -8,11 +8,14 @@ export default function FamilySetup({ onSetup }) {
     kids: [{ id: 'k1', name: 'ילד 1', balance: 0, pin: '', avatar: '🦁' }],
   });
 
+  const [pinError, setPinError] = React.useState('');
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!setupData.parentPin || setupData.parentPin.length !== 4) {
-      alert('נדרש קוד הורים בן 4 ספרות'); return;
+      setPinError('נדרש קוד הורים בן 4 ספרות'); return;
     }
+    setPinError('');
     const parents = [];
     if (setupData.parent1.trim()) parents.push({ id: 'p1', name: setupData.parent1.trim() });
     if (setupData.parent2.trim()) parents.push({ id: 'p2', name: setupData.parent2.trim() });
@@ -44,8 +47,9 @@ export default function FamilySetup({ onSetup }) {
                 <Lock className="w-4 h-4" />קוד הורים — 4 ספרות (חובה)
               </label>
               <input type="password" inputMode="numeric" maxLength={4} required value={setupData.parentPin}
-                onChange={(e) => setSetupData({ ...setupData, parentPin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                onChange={(e) => { setSetupData({ ...setupData, parentPin: e.target.value.replace(/\D/g, '').slice(0, 4) }); setPinError(''); }}
                 className="w-full p-3 border rounded-xl text-center text-2xl tracking-[0.5em]" placeholder="••••" />
+              {pinError && <p className="text-red-500 text-sm mt-2 font-medium">{pinError}</p>}
             </div>
           </div>
           <div>

@@ -17,8 +17,11 @@ export default function FamilyApp() {
 
   // ── Loading ───────────────────────────────────────────────────────────────
   if (configLoading || !familyConfig) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="animate-spin w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full" />
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="text-center">
+        <div className="animate-spin w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto mb-3" />
+        <p className="text-sm text-slate-400">טוען...</p>
+      </div>
     </div>
   );
 
@@ -35,15 +38,11 @@ export default function FamilyApp() {
   // ── Profile picker ────────────────────────────────────────────────────────
   if (!selectedProfile) return <ProfilePicker />;
 
-  // ── PIN entry ─────────────────────────────────────────────────────────────
+  // ── PIN entry — server validates; PinEntry is self-contained ─────────────
   if (selectedProfile && !currentProfile) {
-    const correctPin = selectedProfile.type === 'parent'
-      ? familyConfig.parentPin
-      : familyConfig.kids?.find((k) => k.id === selectedProfile.id)?.pin;
     return (
       <PinEntry
         profile={selectedProfile}
-        correctPin={correctPin}
         onSuccess={() => loginAs(selectedProfile)}
         onBack={() => setSelectedProfile(null)}
       />

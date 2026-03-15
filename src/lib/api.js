@@ -55,6 +55,24 @@ export const inviteCall = async (action, payload = {}) => {
   return res.json();
 };
 
+// ─── WebAuthn API ───────────────────────────────────────────────────────────
+
+export const webauthnCall = async (action, payload = {}, token = '') => {
+  const res = await fetch('/api/webauthn', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    throw new Error(err.error || `WebAuthn error ${res.status}`);
+  }
+  return res.json();
+};
+
 // ─── Auth API ───────────────────────────────────────────────────────────────
 
 const getAuthToken = () => {

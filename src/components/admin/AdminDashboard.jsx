@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   ShieldCheck, Users, Link2, ScrollText, Settings, Lock,
   Trash2, Copy, X, RefreshCw, Image, ArrowRight, UserPlus,
-  UserMinus, Mail,
+  UserMinus, Mail, Shield,
 } from 'lucide-react';
 import { adminCall } from '../../lib/api';
 import { ADMIN_SESSION_KEY, APP_VERSION } from '../../constants';
@@ -519,6 +519,58 @@ function LogViewer({ token }) {
   );
 }
 
+// ─── Sessions Tab ────────────────────────────────────────────────────────────
+function SessionsManagement({ token }) {
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadSessions = useCallback(async () => {
+    try {
+      const res = await adminCall('listSessions', {}, token);
+      setSessions(res.sessions || []);
+    } catch {} finally { setLoading(false); }
+  }, [token]);
+
+  useEffect(() => { loadSessions(); }, [loadSessions]);
+
+  const revokeAll = async () => {
+    if (!window.confirm('לבטל את כל הסשנים הפעילים?')) return;
+    await adminCall('revokeAllSessions', {}, token);
+    setSessions([]);
+  };
+
+  if (loading) return <p className="text-center text-gray-400 py-8">טוען...</p>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold text-lg flex items-center gap-2"><Lock className="w-5 h-5 text-indigo-500" />סשנים פעילים ({sessions.length})</h2>
+        <div className="flex gap-2">
+          <button onClick={loadSessions} className="p-2 hover:bg-gray-100 rounded-lg"><RefreshCw className="w-4 h-4 text-gray-400" /></button>
+          {sessions.length > 0 && (
+            <button onClick={revokeAll} className="text-xs text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-red-200 transition-colors">
+              בטל הכל
+            </button>
+          )}
+        </div>
+      </div>
+      {sessions.length === 0 && <p className="text-gray-400 text-center py-6">אין סשנים פעילים</p>}
+      {sessions.map((s, i) => (
+        <div key={i} className="border rounded-xl p-4 bg-slate-50 text-sm">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-mono text-xs text-slate-500">{s.token}</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${s.expiresAt > Date.now() ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+              {s.expiresAt > Date.now() ? 'פעיל' : 'פג תוקף'}
+            </span>
+          </div>
+          <p className="text-xs text-slate-400">נוצר: {new Date(s.createdAt).toLocaleString('he-IL')}</p>
+          {s.ip && <p className="text-xs text-slate-400">IP: {s.ip}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Admin Config Tab ───────────────────────────────────────────────────────
 function AdminConfig({ token }) {
   const [currentPw, setCurrentPw] = useState('');
@@ -526,7 +578,7 @@ function AdminConfig({ token }) {
   const [msg, setMsg] = useState('');
 
   const changePassword = async () => {
-    if (!newPw || newPw.length < 4) { setMsg('סיסמה חייבת להכיל לפחות 4 תווים'); return; }
+    if (!newPw || newPw.length < 8) { setMsg('סיסמה חייבת להכיל לפחות 8 תווים'); return; }
     try {
       await adminCall('changePassword', { currentPassword: currentPw, newPassword: newPw }, token);
       setMsg('סיסמה שונתה בהצלחה!');
@@ -577,6 +629,7 @@ export default function AdminDashboard() {
     { id: 'families', label: 'משפחות', icon: Users },
     { id: 'users', label: 'משתמשים', icon: Mail },
     { id: 'invites', label: 'הזמנות', icon: Link2 },
+    { id: 'sessions', label: 'סשנים', icon: Shield },
     { id: 'logs', label: 'לוגים', icon: ScrollText },
     { id: 'settings', label: 'הגדרות', icon: Settings },
   ];
@@ -614,6 +667,7 @@ export default function AdminDashboard() {
           {tab === 'families' && <FamilyManagement token={token} />}
           {tab === 'users' && <UserManagement token={token} />}
           {tab === 'invites' && <InviteManagement token={token} />}
+          {tab === 'sessions' && <SessionsManagement token={token} />}
           {tab === 'logs' && <LogViewer token={token} />}
           {tab === 'settings' && <AdminConfig token={token} />}
         </div>

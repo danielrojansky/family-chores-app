@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Clock, Plus, Users, Coins, Check, X, RefreshCw,
-  Wallet, Trash2, Star, Gift, TrendingUp, Link2, Copy,
+  Wallet, Trash2, Star, Gift, TrendingUp, Link2, Copy, Fingerprint,
 } from 'lucide-react';
 import Header from '../ui/Header';
 import BonusModal from '../modals/BonusModal';
@@ -12,12 +12,15 @@ import { useFamily } from '../../context/FamilyContext';
 import { today, calcStreak, appendActivity } from '../../lib/utils';
 import { logAction } from '../../lib/logger';
 import { Lock } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { isWebAuthnSupported, registerPasskey, listPasskeys, deletePasskey } from '../../lib/webauthn';
 
 export default function ParentDashboard() {
   const {
     familyId, familyConfig, chores, activeTab, setActiveTab,
     mutateConfig, mutateChores, apiCall,
   } = useFamily();
+  const { user } = useAuth();
 
   const [newChore, setNewChore] = useState({ title: '', reward: '', assignedTo: 'all', isRecurring: false });
   const [bonusTarget, setBonusTarget] = useState(null);
@@ -25,6 +28,9 @@ export default function ParentDashboard() {
   const [inviteLink, setInviteLink] = useState('');
   const [inviteCopied, setInviteCopied] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [passkeys, setPasskeys] = useState(null);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [passkeyMsg, setPasskeyMsg] = useState('');
 
   // ── Data handlers ─────────────────────────────────────────────────────────
   const handleAddChore = async (e) => {
@@ -126,6 +132,30 @@ export default function ParentDashboard() {
     });
   };
 
+  const handleLoadPasskeys = async () => {
+    setPasskeyLoading(true);
+    try { const res = await listPasskeys(); setPasskeys(res.passkeys || []); }
+    catch { setPasskeyMsg('לא ניתן לטעון מפתחות'); }
+    finally { setPasskeyLoading(false); }
+  };
+
+  const handleRegisterPasskey = async () => {
+    setPasskeyLoading(true); setPasskeyMsg('');
+    try {
+      await registerPasskey('מכשיר ' + new Date().toLocaleDateString('he-IL'));
+      setPasskeyMsg('מפתח נרשם בהצלחה!');
+      await handleLoadPasskeys();
+    } catch (err) { setPasskeyMsg(err.message || 'שגיאה ברישום מפתח'); }
+    finally { setPasskeyLoading(false); }
+  };
+
+  const handleDeletePasskey = async (credId) => {
+    setPasskeyLoading(true);
+    try { await deletePasskey(credId); await handleLoadPasskeys(); }
+    catch { setPasskeyMsg('שגיאה במחיקת מפתח'); }
+    finally { setPasskeyLoading(false); }
+  };
+
   // ── Settings view ─────────────────────────────────────────────────────────
   if (activeTab === 'settings') return (
     <div dir="rtl" className="min-h-screen bg-gray-50 pb-10">
@@ -168,6 +198,44 @@ export default function ParentDashboard() {
             </button>
           )}
         </div>
+
+        {isWebAuthnSupported() && user && (
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border">
+            <h2 className="text-base sm:text-lg font-bold mb-1 flex items-center gap-2">
+              <Fingerprint className="text-indigo-600 w-5 h-5" />כניסה ביומטרית
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">Face ID, Touch ID, או מפתח אבטחה</p>
+            {passkeys === null ? (
+              <button onClick={handleLoadPasskeys} disabled={passkeyLoading}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl transition-colors text-sm flex items-center justify-center gap-2">
+                <Fingerprint className="w-4 h-4" />{passkeyLoading ? 'טוען...' : 'הצג מפתחות כניסה'}
+              </button>
+            ) : (
+              <div className="space-y-3">
+                {passkeys.length === 0 && (
+                  <p className="text-sm text-slate-400 text-center py-2">אין מפתחות כניסה רשומים</p>
+                )}
+                {passkeys.map((pk) => (
+                  <div key={pk.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border">
+                    <div>
+                      <p className="text-sm font-semibold">{pk.deviceName || 'מכשיר'}</p>
+                      <p className="text-xs text-slate-400">{new Date(pk.registeredAt).toLocaleDateString('he-IL')}</p>
+                    </div>
+                    <button onClick={() => handleDeletePasskey(pk.id)}
+                      className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                <button onClick={handleRegisterPasskey} disabled={passkeyLoading}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm flex items-center justify-center gap-2">
+                  <Fingerprint className="w-4 h-4" />{passkeyLoading ? 'רושם...' : 'רשום מכשיר חדש'}
+                </button>
+                {passkeyMsg && <p className={`text-sm text-center font-medium ${passkeyMsg.includes('שגיאה') ? 'text-red-500' : 'text-emerald-600'}`}>{passkeyMsg}</p>}
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

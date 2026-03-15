@@ -1,4 +1,7 @@
 import { Redis } from '@upstash/redis';
+import { hashPassword, verifyPassword, generateToken } from './_lib/security.js';
+import { verifyAdminSession } from './_lib/auth.js';
+import { checkLimit, loginLimiter } from './_lib/rateLimit.js';
 
 const kv = new Redis({
   url: process.env.KV_REST_API_URL,
@@ -6,81 +9,74 @@ const kv = new Redis({
 });
 
 const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Origin': process.env.APP_ORIGIN || '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-// Simple hash for admin password (not bcrypt — serverless-friendly)
-function simpleHash(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return 'h_' + Math.abs(hash).toString(36);
-}
-
-// Generate a random token
-function generateToken() {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let token = '';
-  for (let i = 0; i < 32; i++) token += chars[Math.floor(Math.random() * chars.length)];
+// ─── Admin session creation ───────────────────────────────────────────────────
+async function createAdminSession(req) {
+  const token = generateToken(32);
+  const now = Date.now();
+  const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+  const session = {
+    createdAt: now,
+    expiresAt: now + 24 * 60 * 60 * 1000, // 24h
+    ip,
+    userAgent: req.headers['user-agent'] || '',
+  };
+  await kv.set(`app:admin:sessions:${token}`, session);
+  await kv.expire(`app:admin:sessions:${token}`, 86400);
+  await kv.sadd('app:admin:sessions:all', token);
   return token;
 }
 
-// Verify admin token
-async function verifyToken(req) {
-  const auth = req.headers.authorization;
-  if (!auth?.startsWith('Bearer ')) return false;
-  const token = auth.slice(7);
-  const session = await kv.get(`app:admin:sessions:${token}`);
-  return !!session;
-}
-
-// Default admin password (set on first login if none exists)
-const DEFAULT_ADMIN_PASSWORD = 'admin1234';
-
+// ─── Handler ──────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
   if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
     const { action, ...payload } = req.body;
 
-    // ── Login (no auth required) ──────────────────────────────────────────
+    // ── Login (no auth required) ───────────────────────────────────────────
     if (action === 'login') {
+      const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+      if (await checkLimit(loginLimiter, `admin:${ip}`, res)) return;
+
       const storedHash = await kv.get('app:admin:passwordHash');
-      const inputHash = simpleHash(payload.password);
+      const { password } = payload;
 
       if (!storedHash) {
-        // First-time setup: if password matches default, set it
-        if (payload.password === DEFAULT_ADMIN_PASSWORD) {
-          await kv.set('app:admin:passwordHash', inputHash);
-        } else {
-          return res.status(401).json({ error: 'סיסמה שגויה. ברירת המחדל: admin1234' });
+        // First-run: require ADMIN_SETUP_KEY environment variable
+        const setupKey = process.env.ADMIN_SETUP_KEY;
+        if (!setupKey || payload.setupKey !== setupKey) {
+          return res.status(401).json({ error: 'סיסמה שגויה' });
         }
-      } else if (storedHash !== inputHash) {
-        return res.status(401).json({ error: 'סיסמה שגויה' });
+        // Set the new password as the admin password
+        await kv.set('app:admin:passwordHash', await hashPassword(password));
+      } else {
+        const valid = await verifyPassword(password, storedHash);
+        if (!valid) return res.status(401).json({ error: 'סיסמה שגויה' });
+
+        // Transparent migration from legacy hash
+        if (storedHash.startsWith('h_')) {
+          await kv.set('app:admin:passwordHash', await hashPassword(password));
+        }
       }
 
-      const token = generateToken();
-      await kv.set(`app:admin:sessions:${token}`, { createdAt: Date.now() });
-      // Session expires in 24 hours
-      await kv.expire(`app:admin:sessions:${token}`, 86400);
+      const token = await createAdminSession(req);
       return res.json({ token });
     }
 
-    // ── All other actions require auth ────────────────────────────────────
-    if (!(await verifyToken(req))) {
+    // ── All other actions require valid admin session ───────────────────────
+    if (!(await verifyAdminSession(req, kv))) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
     switch (action) {
-      // ── List families ─────────────────────────────────────────────────
+      // ── Families ──────────────────────────────────────────────────────────
       case 'listFamilies': {
         const familyIds = await kv.smembers('app:families');
         const families = [];
@@ -93,30 +89,27 @@ export default async function handler(req, res) {
             kidsCount: config?.kids?.length || 0,
             isSetup: config?.isSetup || false,
             parents: config?.parents || [],
-            kids: (config?.kids || []).map(k => ({ id: k.id, name: k.name, avatar: k.avatar })),
+            kids: (config?.kids || []).map((k) => ({ id: k.id, name: k.name, avatar: k.avatar })),
           });
         }
         return res.json({ families });
       }
 
-      // ── Get family detail ─────────────────────────────────────────────
       case 'getFamily': {
         const config = await kv.get(`family:${payload.familyId}:config`);
         const chores = await kv.get(`family:${payload.familyId}:chores`);
         return res.json({ config: config || {}, chores: chores || [] });
       }
 
-      // ── Rename family ─────────────────────────────────────────────────
       case 'renameFamily': {
-        if (!payload.familyId || !payload.name) return res.status(400).json({ error: 'Missing familyId or name' });
+        if (!payload.familyId || !payload.newName) return res.status(400).json({ error: 'Missing familyId or newName' });
         const config = await kv.get(`family:${payload.familyId}:config`);
         if (!config) return res.status(404).json({ error: 'Family not found' });
-        config.familyName = payload.name;
+        config.familyName = payload.newName.trim().slice(0, 50);
         await kv.set(`family:${payload.familyId}:config`, config);
         return res.json({ ok: true });
       }
 
-      // ── Delete family ─────────────────────────────────────────────────
       case 'deleteFamily': {
         await kv.del(`family:${payload.familyId}:config`);
         await kv.del(`family:${payload.familyId}:chores`);
@@ -125,11 +118,9 @@ export default async function handler(req, res) {
         return res.json({ ok: true });
       }
 
-      // ── Reset PIN ─────────────────────────────────────────────────────
       case 'resetPin': {
         const config = await kv.get(`family:${payload.familyId}:config`);
         if (!config) return res.status(404).json({ error: 'Family not found' });
-
         if (payload.targetType === 'parent') {
           config.parentPin = payload.newPin;
         } else {
@@ -141,7 +132,6 @@ export default async function handler(req, res) {
         return res.json({ ok: true });
       }
 
-      // ── Delete media (proof image) ────────────────────────────────────
       case 'deleteMedia': {
         const chores = (await kv.get(`family:${payload.familyId}:chores`)) || [];
         const updated = chores.map((c) =>
@@ -151,22 +141,60 @@ export default async function handler(req, res) {
         return res.json({ ok: true });
       }
 
-      // ── Change admin password ─────────────────────────────────────────
+      // ── Admin password ─────────────────────────────────────────────────────
       case 'changePassword': {
         const storedHash = await kv.get('app:admin:passwordHash');
-        if (storedHash && storedHash !== simpleHash(payload.currentPassword)) {
-          return res.status(401).json({ error: 'סיסמה נוכחית שגויה' });
+        if (storedHash) {
+          const valid = await verifyPassword(payload.currentPassword, storedHash);
+          if (!valid) return res.status(401).json({ error: 'סיסמה נוכחית שגויה' });
         }
-        await kv.set('app:admin:passwordHash', simpleHash(payload.newPassword));
+        if (!payload.newPassword || payload.newPassword.length < 8) {
+          return res.status(400).json({ error: 'הסיסמה החדשה חייבת להכיל לפחות 8 תווים' });
+        }
+        await kv.set('app:admin:passwordHash', await hashPassword(payload.newPassword));
         return res.json({ ok: true });
       }
 
-      // ── Invite management (from admin) ────────────────────────────────
+      // ── Session management ─────────────────────────────────────────────────
+      case 'listSessions': {
+        const tokens = await kv.smembers('app:admin:sessions:all');
+        const sessions = [];
+        for (const tok of tokens || []) {
+          const s = await kv.get(`app:admin:sessions:${tok}`);
+          if (s) {
+            sessions.push({ token: tok.slice(0, 8) + '...', ...s });
+          } else {
+            // Clean up expired token from set
+            await kv.srem('app:admin:sessions:all', tok);
+          }
+        }
+        sessions.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        return res.json({ sessions });
+      }
+
+      case 'revokeSession': {
+        const { sessionToken } = payload;
+        if (!sessionToken) return res.status(400).json({ error: 'Missing sessionToken' });
+        await kv.del(`app:admin:sessions:${sessionToken}`);
+        await kv.srem('app:admin:sessions:all', sessionToken);
+        return res.json({ ok: true });
+      }
+
+      case 'revokeAllSessions': {
+        const tokens = await kv.smembers('app:admin:sessions:all');
+        for (const tok of tokens || []) await kv.del(`app:admin:sessions:${tok}`);
+        await kv.del('app:admin:sessions:all');
+        return res.json({ ok: true });
+      }
+
+      // ── Invite management ──────────────────────────────────────────────────
       case 'createInvite': {
-        const code = generateToken().slice(0, 12);
+        const { generateInviteCode } = await import('./_lib/security.js');
+        const code = generateInviteCode();
         const invite = {
           code,
-          familyName: payload.familyName,
+          familyName: payload.familyName?.trim().slice(0, 50) || '',
+          type: 'create',
           createdAt: Date.now(),
           used: false,
           familyId: null,
@@ -183,7 +211,6 @@ export default async function handler(req, res) {
           const inv = await kv.get(`app:invites:${code}`);
           if (inv) invites.push(inv);
         }
-        // Sort by creation time, newest first
         invites.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         return res.json({ invites });
       }
@@ -194,7 +221,7 @@ export default async function handler(req, res) {
         return res.json({ ok: true });
       }
 
-      // ── User management ────────────────────────────────────────────────
+      // ── User management ────────────────────────────────────────────────────
       case 'listUsers': {
         const emails = await kv.smembers('app:users');
         const users = [];
@@ -216,48 +243,35 @@ export default async function handler(req, res) {
       case 'assignUserToFamily': {
         const { email, familyId, name: displayName, role, memberId } = payload;
         if (!email || !familyId) return res.status(400).json({ error: 'Missing email or familyId' });
-
         const userKey = `app:users:${email.toLowerCase()}`;
         const user = await kv.get(userKey);
         if (!user) return res.status(404).json({ error: 'User not found' });
-
-        // Get family config for display name and member validation
         const familyConfig = await kv.get(`family:${familyId}:config`);
-        const familyName = familyConfig?.familyName || displayName || (familyConfig?.parents || []).map(p => p.name).join(' & ') || familyId;
-
-        // Resolve member name if memberId is provided
+        const familyName = familyConfig?.familyName || displayName
+          || (familyConfig?.parents || []).map((p) => p.name).join(' & ') || familyId;
         let memberName = '';
         if (memberId && familyConfig) {
-          const parent = (familyConfig.parents || []).find(p => p.id === memberId);
-          const kid = (familyConfig.kids || []).find(k => k.id === memberId);
+          const parent = (familyConfig.parents || []).find((p) => p.id === memberId);
+          const kid = (familyConfig.kids || []).find((k) => k.id === memberId);
           memberName = parent?.name || kid?.name || '';
         }
-
-        // Add family to user's list (avoid duplicates)
-        user.families = (user.families || []).filter(f => f.familyId !== familyId);
+        user.families = (user.families || []).filter((f) => f.familyId !== familyId);
         user.families.push({
-          familyId,
-          name: familyName,
-          role: role || 'member',
-          memberId: memberId || null,       // linked family member profile
-          memberName: memberName || null,
+          familyId, name: familyName, role: role || 'member',
+          memberId: memberId || null, memberName: memberName || null,
         });
         await kv.set(userKey, user);
-
         return res.json({ ok: true });
       }
 
       case 'removeUserFromFamily': {
         const { email, familyId } = payload;
         if (!email || !familyId) return res.status(400).json({ error: 'Missing email or familyId' });
-
         const userKey = `app:users:${email.toLowerCase()}`;
         const user = await kv.get(userKey);
         if (!user) return res.status(404).json({ error: 'User not found' });
-
-        user.families = (user.families || []).filter(f => f.familyId !== familyId);
+        user.families = (user.families || []).filter((f) => f.familyId !== familyId);
         await kv.set(userKey, user);
-
         return res.json({ ok: true });
       }
 
@@ -269,24 +283,21 @@ export default async function handler(req, res) {
         return res.json({ ok: true });
       }
 
-      // ── Get logs ──────────────────────────────────────────────────────
+      // ── Logs ──────────────────────────────────────────────────────────────
       case 'getLogs': {
-        const limit = payload.limit || 100;
+        const limit = Math.min(payload.limit || 100, 500);
         if (payload.familyId) {
           const logs = await kv.lrange(`family:${payload.familyId}:log`, 0, limit - 1);
           return res.json({ logs: logs || [] });
         }
-        // Global: get logs from all families
         const familyIds = await kv.smembers('app:families');
         let allLogs = [];
         for (const fid of familyIds || []) {
           const logs = await kv.lrange(`family:${fid}:log`, 0, 50);
           allLogs = allLogs.concat(logs || []);
         }
-        // Also get global logs
         const globalLogs = await kv.lrange('app:log', 0, 50);
         allLogs = allLogs.concat(globalLogs || []);
-        // Sort by timestamp descending and limit
         allLogs.sort((a, b) => (b.ts || 0) - (a.ts || 0));
         return res.json({ logs: allLogs.slice(0, limit) });
       }
@@ -296,6 +307,6 @@ export default async function handler(req, res) {
     }
   } catch (err) {
     console.error('[API Admin Error]', err);
-    return res.status(500).json({ error: String(err) });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

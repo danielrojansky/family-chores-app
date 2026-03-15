@@ -4,9 +4,11 @@ import { ShieldCheck, User, X } from 'lucide-react';
 export default function PinSettingsForm({ initialConfig, onSave, onCancel }) {
   const [parentPin, setParentPin] = useState(initialConfig.parentPin || '');
   const [kids, setKids] = useState(initialConfig.kids.map((k) => ({ ...k, pin: k.pin || '' })));
+  const [pinError, setPinError] = useState('');
   const handleSave = (e) => {
     e.preventDefault();
-    if (parentPin.length !== 4) { alert('קוד הורים חייב להיות 4 ספרות'); return; }
+    if (parentPin.length !== 4) { setPinError('קוד הורים חייב להיות 4 ספרות'); return; }
+    setPinError('');
     onSave(parentPin, kids.map((k) => ({ ...k, pin: k.pin || null })));
   };
   return (
@@ -16,8 +18,9 @@ export default function PinSettingsForm({ initialConfig, onSave, onCancel }) {
           <ShieldCheck className="w-4 h-4" />קוד הורים (4 ספרות)
         </label>
         <input type="password" inputMode="numeric" maxLength={4} required value={parentPin}
-          onChange={(e) => setParentPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+          onChange={(e) => { setParentPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setPinError(''); }}
           className="w-full p-3 border rounded-xl text-center text-2xl tracking-[0.5em]" placeholder="••••" />
+        {pinError && <p className="text-red-500 text-sm mt-2 font-medium">{pinError}</p>}
       </div>
       <div>
         <h3 className="font-bold mb-1 text-gray-700 text-sm sm:text-base flex items-center gap-2">

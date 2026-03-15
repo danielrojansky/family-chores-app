@@ -1,7 +1,7 @@
 {
   "name": "family-chores-app",
   "private": true,
-  "version": "2.2.0",
+  "version": "2.3.0",
   "homepage": "https://vercel.com/danielrojansky-8273s-projects/family_app",
   "repository": {
     "type": "git",
@@ -14,6 +14,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.0",
+    "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
     "lucide-react": "^0.408.0",
     "nanoid": "^5.1.6",
