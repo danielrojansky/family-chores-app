@@ -4,7 +4,7 @@ import { AVATARS } from '../../constants';
 
 export default function FamilySetup({ onSetup }) {
   const [setupData, setSetupData] = useState({
-    parent1: 'אבא', parent2: 'אמא', parentPin: '',
+    familyName: '', parent1: 'אבא', parent2: 'אמא', parentPin: '',
     kids: [{ id: 'k1', name: 'ילד 1', balance: 0, pin: '', avatar: '🦁' }],
   });
 
@@ -20,7 +20,7 @@ export default function FamilySetup({ onSetup }) {
     if (setupData.parent1.trim()) parents.push({ id: 'p1', name: setupData.parent1.trim() });
     if (setupData.parent2.trim()) parents.push({ id: 'p2', name: setupData.parent2.trim() });
     onSetup({
-      isSetup: true, parentPin: setupData.parentPin, parents, activityLog: [],
+      isSetup: true, familyName: setupData.familyName.trim() || null, parentPin: setupData.parentPin, parents, activityLog: [],
       kids: setupData.kids.filter((k) => k.name.trim()).map((k) => ({
         ...k, name: k.name.trim(), pin: k.pin || null,
         avatar: k.avatar || '🦁', balance: 0, streak: 0, lastStreakDate: null, wishlist: [],
@@ -34,6 +34,11 @@ export default function FamilySetup({ onSetup }) {
         <h1 className="text-2xl sm:text-3xl font-bold text-center text-indigo-900 mb-1">הגדרת משפחה 👋</h1>
         <p className="text-center text-gray-500 mb-5 sm:mb-6 text-sm">הגדרה חד-פעמית — הכל נשמר בענן</p>
         <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
+          <div>
+            <h3 className="font-bold text-gray-800 border-b pb-2 mb-3">שם המשפחה</h3>
+            <input type="text" value={setupData.familyName} onChange={(e) => setSetupData({ ...setupData, familyName: e.target.value })}
+              className="w-full p-3 border rounded-xl" placeholder="למשל: משפחת כהן (אופציונלי)" />
+          </div>
           <div>
             <h3 className="font-bold text-gray-800 border-b pb-2 mb-3">הורים</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">

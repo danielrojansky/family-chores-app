@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { ShieldCheck, User, X } from 'lucide-react';
 
 export default function PinSettingsForm({ initialConfig, onSave, onCancel }) {
-  const [parentPin, setParentPin] = useState(initialConfig.parentPin || '');
-  const [kids, setKids] = useState(initialConfig.kids.map((k) => ({ ...k, pin: k.pin || '' })));
+  // parentPin comes masked as '****' from server — initialize empty so parent sets a new one
+  const [parentPin, setParentPin] = useState('');
+  const [kids, setKids] = useState(initialConfig.kids.map((k) => ({ ...k, pin: k.pin === '****' ? '' : (k.pin || '') })));
   const [pinError, setPinError] = useState('');
   const handleSave = (e) => {
     e.preventDefault();
@@ -19,7 +20,8 @@ export default function PinSettingsForm({ initialConfig, onSave, onCancel }) {
         </label>
         <input type="password" inputMode="numeric" maxLength={4} required value={parentPin}
           onChange={(e) => { setParentPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setPinError(''); }}
-          className="w-full p-3 border rounded-xl text-center text-2xl tracking-[0.5em]" placeholder="••••" />
+          className="w-full p-3 border rounded-xl text-center text-2xl tracking-[0.5em]" placeholder="הכנס קוד חדש" />
+        <p className="text-xs text-indigo-500 mt-1">הכנס קוד חדש בן 4 ספרות</p>
         {pinError && <p className="text-red-500 text-sm mt-2 font-medium">{pinError}</p>}
       </div>
       <div>

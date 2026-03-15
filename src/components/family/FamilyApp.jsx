@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../../context/FamilyContext';
+import { useAuth } from '../../context/AuthContext';
 import PinEntry from '../ui/PinEntry';
 import FamilySetup from './FamilySetup';
 import ProfilePicker from './ProfilePicker';
@@ -11,12 +12,29 @@ import { clearSession } from '../../lib/session';
 
 export default function FamilyApp() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const {
     familyId, familyConfig, configLoading, configError,
     selectedProfile, setSelectedProfile,
     currentProfile, loginAs,
     apiCall, mutateConfig,
   } = useFamily();
+
+  // Auto-skip PIN for Google-authenticated parents
+  const autoLoginRef = useRef(false);
+  useEffect(() => {
+    if (
+      selectedProfile &&
+      !currentProfile &&
+      selectedProfile.type === 'parent' &&
+      user?.provider === 'google' &&
+      !autoLoginRef.current
+    ) {
+      autoLoginRef.current = true;
+      loginAs(selectedProfile);
+    }
+    if (!selectedProfile) autoLoginRef.current = false;
+  }, [selectedProfile, currentProfile, user, loginAs]);
 
   // ── Auth error (401/403) ────────────────────────────────────────────────
   if (configError?.name === 'AuthError') {
@@ -61,7 +79,19 @@ export default function FamilyApp() {
   if (!selectedProfile) return <ProfilePicker />;
 
   // ── PIN entry — server validates; PinEntry is self-contained ─────────────
+  // Skip PIN for Google-authenticated parents (handled by useEffect above)
   if (selectedProfile && !currentProfile) {
+    if (selectedProfile.type === 'parent' && user?.provider === 'google') {
+      // Auto-login in progress via useEffect — show loading
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="text-center">
+            <div className="animate-spin w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto mb-3" />
+            <p className="text-sm text-slate-400">מתחבר...</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <PinEntry
         profile={selectedProfile}

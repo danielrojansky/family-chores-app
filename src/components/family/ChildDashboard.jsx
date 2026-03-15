@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   CheckCircle, Clock, Coins, Check, X, Gift, Heart,
-  TrendingUp, ChevronDown, ChevronUp,
+  TrendingUp, ChevronDown, ChevronUp, Calendar,
 } from 'lucide-react';
 import Header from '../ui/Header';
 import Confetti from '../ui/Confetti';
@@ -17,6 +17,7 @@ export default function ChildDashboard() {
   const [showHistory, setShowHistory] = useState(false);
   const [showWishlist, setShowWishlist] = useState(false);
   const [newWishItem, setNewWishItem] = useState('');
+  const [justCompleted, setJustCompleted] = useState(null);
 
   const fileInputRef = useRef(null);
   const prevApprovedRef = useRef(new Set());
@@ -27,12 +28,31 @@ export default function ChildDashboard() {
     const approved = new Set(
       chores.filter((c) => c.status === 'approved' && c.completedBy === currentProfile.id).map((c) => c.id)
     );
+    let timer;
     if (prevApprovedRef.current.size > 0) {
       const newOnes = [...approved].filter((id) => !prevApprovedRef.current.has(id));
-      if (newOnes.length > 0) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 3500); }
+      if (newOnes.length > 0) {
+        setShowConfetti(true);
+        timer = setTimeout(() => setShowConfetti(false), 3500);
+      }
     }
     prevApprovedRef.current = approved;
+    return () => { if (timer) clearTimeout(timer); };
   }, [chores, currentProfile]);
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  const formatRelative = (ts) => {
+    if (!ts) return '';
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'עכשיו';
+    if (mins < 60) return `לפני ${mins} דק׳`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `לפני ${hours} שע׳`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `לפני ${days} ימים`;
+    return new Date(ts).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
+  };
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleImageCapture = (e) => {
@@ -54,16 +74,24 @@ export default function ChildDashboard() {
 
   const submitChoreCompletion = async () => {
     if (!completingChoreId) return;
-    const chore = chores.find((c) => c.id === completingChoreId);
-    await apiCall('updateChore', { id: completingChoreId, patch: {
-      status: 'pending_approval', completedBy: currentProfile.id,
-      proofImage: proofImage || null, rejectionNote: null,
-    }});
-    await mutateChores();
-    setCompletingChoreId(null); setProofImage(null);
-    logAction(familyId, 'chore.completed', {
-      choreId: completingChoreId, choreTitle: chore?.title, hasProof: !!proofImage,
-    }, { type: 'kid', id: currentProfile.id, name: currentProfile.name });
+    const choreId = completingChoreId;
+    const chore = chores.find((c) => c.id === choreId);
+    try {
+      await apiCall('updateChore', { id: choreId, patch: {
+        status: 'pending_approval', completedBy: currentProfile.id,
+        completedAt: Date.now(),
+        proofImage: proofImage || null, rejectionNote: null,
+      }});
+      await mutateChores();
+      setJustCompleted(choreId);
+      setTimeout(() => setJustCompleted(null), 2000);
+      setCompletingChoreId(null); setProofImage(null);
+      logAction(familyId, 'chore.completed', {
+        choreId, choreTitle: chore?.title, hasProof: !!proofImage,
+      }, { type: 'kid', id: currentProfile.id, name: currentProfile.name });
+    } catch {
+      // Keep modal open so user can retry
+    }
   };
 
   const handleAddWishItem = async () => {
@@ -96,7 +124,7 @@ export default function ChildDashboard() {
       {/* Photo proof modal */}
       {completingChoreId && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white p-5 sm:p-6 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm text-center shadow-2xl">
+          <div className="bg-white p-5 sm:p-6 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm text-center shadow-2xl animate-slide-up">
             <h3 className="font-bold text-lg sm:text-xl mb-1">תמונה להורים? 📷</h3>
             <p className="text-sm text-gray-400 mb-3 sm:mb-4">אופציונלי — תמונה כהוכחה</p>
             <div className="relative border-2 border-dashed rounded-xl bg-gray-50 h-32 sm:h-40 mb-4 flex items-center justify-center overflow-hidden">
@@ -107,8 +135,8 @@ export default function ChildDashboard() {
                 : <span className="text-gray-400 text-sm pointer-events-none">לחצו לצלם תמונה</span>}
             </div>
             <div className="flex gap-2">
-              <button onClick={submitChoreCompletion} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold p-3 rounded-xl transition-colors">שליחה ✅</button>
-              <button onClick={() => { setCompletingChoreId(null); setProofImage(null); }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-3 rounded-xl">ביטול</button>
+              <button onClick={submitChoreCompletion} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold p-3 rounded-xl transition-all active:scale-95">שליחה ✅</button>
+              <button onClick={() => { setCompletingChoreId(null); setProofImage(null); }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-3 rounded-xl transition-colors">ביטול</button>
             </div>
           </div>
         </div>
@@ -140,7 +168,7 @@ export default function ChildDashboard() {
 
         {/* Rejection feedback */}
         {rejected.length > 0 && (
-          <section className="bg-red-50 p-4 sm:p-5 rounded-2xl border border-red-200">
+          <section className="bg-red-50 p-4 sm:p-5 rounded-2xl border border-red-200 animate-fade-in">
             <h3 className="font-bold text-red-800 mb-3 flex items-center gap-2 text-sm sm:text-base">
               <X className="w-4 h-4" />חזרו אלייך לתיקון
             </h3>
@@ -148,7 +176,7 @@ export default function ChildDashboard() {
               <div key={c.id} className="bg-white p-3 rounded-xl border border-red-100 mb-2">
                 <p className="font-bold text-gray-800 text-sm sm:text-base">{c.title}</p>
                 <p className="text-xs sm:text-sm text-red-600 mt-1"><span className="font-bold">הורה:</span> {c.rejectionNote}</p>
-                <button onClick={() => setCompletingChoreId(c.id)} className="mt-2 text-sm bg-red-100 hover:bg-red-200 text-red-700 font-bold py-1.5 px-4 rounded-lg transition-colors">שלח שוב</button>
+                <button onClick={() => setCompletingChoreId(c.id)} className="mt-2 text-sm bg-red-100 hover:bg-red-200 text-red-700 font-bold py-1.5 px-4 rounded-lg transition-all active:scale-95">שלח שוב</button>
               </div>
             ))}
           </section>
@@ -161,12 +189,18 @@ export default function ChildDashboard() {
           </h3>
           <div className="space-y-3">
             {availableChores.filter((c) => !c.rejectionNote).map((chore) => (
-              <div key={chore.id} className="bg-gray-50 p-3 sm:p-4 rounded-xl border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3 hover:border-emerald-200 transition-colors">
+              <div key={chore.id}
+                className={`bg-gray-50 p-3 sm:p-4 rounded-xl border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3 hover:border-emerald-200 transition-all ${justCompleted === chore.id ? 'animate-pulse bg-emerald-50' : ''}`}>
                 <div className="min-w-0 flex-1">
                   <h4 className="font-bold text-sm sm:text-base">{chore.title}</h4>
                   <p className="text-emerald-600 font-bold text-sm flex items-center gap-1">
                     {chore.reward}<Coins className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />מטבעות
                   </p>
+                  {chore.createdAt && (
+                    <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                      <Calendar className="w-3 h-3" />{formatRelative(chore.createdAt)}
+                    </p>
+                  )}
                 </div>
                 <button onClick={() => setCompletingChoreId(chore.id)}
                   className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold py-2 sm:py-2.5 px-5 sm:px-6 rounded-xl flex items-center justify-center gap-2 transition-all text-sm sm:text-base shrink-0">
@@ -191,6 +225,9 @@ export default function ChildDashboard() {
                 <div className="min-w-0">
                   <p className="font-bold text-sm truncate">{c.title}</p>
                   <p className="text-xs text-orange-500">{c.reward}🪙 בהמתנה...</p>
+                  {c.completedAt && (
+                    <p className="text-xs text-gray-400 mt-0.5">{formatRelative(c.completedAt)}</p>
+                  )}
                 </div>
                 {c.proofImage && <img src={c.proofImage} alt="הוכחה" className="h-10 w-10 object-cover rounded-lg border shrink-0" />}
               </div>
@@ -220,7 +257,7 @@ export default function ChildDashboard() {
                 <input type="text" value={newWishItem} onChange={(e) => setNewWishItem(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddWishItem()}
                   className="flex-1 p-2 border rounded-xl text-sm min-w-0" placeholder="מה תרצה לקנות?" />
-                <button onClick={handleAddWishItem} className="bg-pink-500 hover:bg-pink-600 text-white px-3 sm:px-4 rounded-xl text-sm font-bold transition-colors shrink-0">הוסף</button>
+                <button onClick={handleAddWishItem} className="bg-pink-500 hover:bg-pink-600 text-white px-3 sm:px-4 rounded-xl text-sm font-bold transition-all active:scale-95 shrink-0">הוסף</button>
               </div>
             </div>
           )}
@@ -239,10 +276,15 @@ export default function ChildDashboard() {
               <div className="mt-4 space-y-2 max-h-40 sm:max-h-64 overflow-y-auto">
                 {myCompleted.map((c) => (
                   <div key={c.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0 gap-2">
-                    <span className="flex items-center gap-1 min-w-0">
-                      <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <span className="truncate">{c.title}</span>
-                    </span>
+                    <div className="min-w-0">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span className="truncate">{c.title}</span>
+                      </span>
+                      {c.approvedAt && (
+                        <p className="text-xs text-gray-400 mr-5">{formatRelative(c.approvedAt)}</p>
+                      )}
+                    </div>
                     <span className="text-emerald-600 font-bold shrink-0">+{c.reward}🪙</span>
                   </div>
                 ))}
@@ -251,6 +293,19 @@ export default function ChildDashboard() {
           </section>
         )}
       </main>
+
+      <style>{`
+        @keyframes slideUp {
+          from { transform: translateY(100%); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-up { animation: slideUp 0.3s ease-out; }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+      `}</style>
     </div>
   );
 }

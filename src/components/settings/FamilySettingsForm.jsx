@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Home } from 'lucide-react';
 import { AVATARS } from '../../constants';
 
 export default function FamilySettingsForm({ initialConfig, onSave, onCancel }) {
+  const [familyName, setFamilyName] = useState(initialConfig.familyName || '');
   const [parents, setParents] = useState([...initialConfig.parents]);
   const [kids, setKids] = useState(initialConfig.kids.map((k) => ({ ...k })));
-  const handleSave = (e) => { e.preventDefault(); onSave(parents.filter((p) => p.name.trim()), kids.filter((k) => k.name.trim())); };
+  const handleSave = (e) => { e.preventDefault(); onSave(parents.filter((p) => p.name.trim()), kids.filter((k) => k.name.trim()), familyName.trim()); };
   return (
     <form onSubmit={handleSave} className="space-y-5">
+      <div>
+        <h3 className="font-bold mb-2 text-gray-700 text-sm sm:text-base flex items-center gap-2">
+          <Home className="w-4 h-4 text-indigo-600" />שם המשפחה
+        </h3>
+        <input type="text" value={familyName}
+          onChange={(e) => setFamilyName(e.target.value)}
+          className="w-full p-3 border rounded-xl" placeholder="למשל: משפחת כהן" />
+      </div>
       <div>
         <h3 className="font-bold mb-2 text-gray-700 text-sm sm:text-base">הורים</h3>
         {parents.map((p, i) => (

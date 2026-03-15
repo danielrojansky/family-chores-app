@@ -3,8 +3,10 @@ import { ShieldCheck, Settings, LogOut } from 'lucide-react';
 import { useFamily } from '../../context/FamilyContext';
 
 export default function Header() {
-  const { currentProfile, activeTab, setActiveTab, logout } = useFamily();
+  const { familyConfig, currentProfile, activeTab, setActiveTab, logout } = useFamily();
   if (!currentProfile) return null;
+
+  const familyName = familyConfig?.familyName;
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-10">
@@ -19,13 +21,15 @@ export default function Header() {
           </div>
           <div className="min-w-0">
             <p className="font-bold leading-tight text-sm sm:text-base truncate">שלום, {currentProfile.name}</p>
-            <p className="text-xs text-gray-400">{currentProfile.type === 'parent' ? 'הורה' : 'ילד/ה'}</p>
+            <p className="text-xs text-gray-400">
+              {familyName ? familyName : (currentProfile.type === 'parent' ? 'הורה' : 'ילד/ה')}
+            </p>
           </div>
         </div>
         <div className="flex gap-1 sm:gap-2 shrink-0">
           {currentProfile.type === 'parent' && (
             <button onClick={() => setActiveTab((t) => (t === 'settings' ? 'dashboard' : 'settings'))}
-              className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
+              className={`p-2 rounded-lg transition-colors ${activeTab === 'settings' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:bg-gray-100'}`}>
               <Settings className="w-5 h-5" />
             </button>
           )}

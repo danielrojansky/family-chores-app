@@ -55,6 +55,7 @@ async function createSession(user) {
     email: user.email,
     name: user.name,
     picture: user.picture,
+    provider: user.provider || 'email',
     families: user.families,
     createdAt: now,
     expiresAt: now + 7 * 24 * 60 * 60 * 1000, // 7 days
@@ -90,6 +91,7 @@ export default async function handler(req, res) {
           session.families = user.families;
           session.name = user.name;
           session.picture = user.picture;
+          session.provider = user.provider || session.provider || 'email';
         }
         return res.json(session);
       }

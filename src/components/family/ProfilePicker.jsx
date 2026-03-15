@@ -1,23 +1,28 @@
 import React from 'react';
-import { ShieldCheck, Lock, Coins } from 'lucide-react';
+import { ShieldCheck, Lock, Coins, Unlock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { APP_VERSION } from '../../constants';
 import { useFamily } from '../../context/FamilyContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function ProfilePicker() {
   const { familyConfig, setSelectedProfile } = useFamily();
+  const { user } = useAuth();
 
-  // All profiles require PIN entry — server validates (no client bypass)
+  const isGoogleParent = user?.provider === 'google';
+
   const handleSelect = (profile) => setSelectedProfile(profile);
 
   const parents = familyConfig.parents || [];
   const kids = familyConfig.kids || [];
+  const familyName = familyConfig.familyName;
 
   return (
     <div dir="rtl" className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-100 w-full max-w-sm overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 p-6 text-center">
+          {familyName && <p className="text-indigo-200 text-xs mb-1">{familyName}</p>}
           <h1 className="text-xl font-bold text-white">מי משתמש כעת?</h1>
           <p className="text-indigo-200 text-sm mt-0.5">בחר את הפרופיל שלך</p>
         </div>
@@ -36,8 +41,12 @@ export default function ProfilePicker() {
                       <ShieldCheck className="w-6 h-6 text-white" />
                     </div>
                     <span className="text-sm font-semibold">{p.name}</span>
-                    <span className="text-xs font-normal text-indigo-500 flex items-center gap-1">
-                      <Lock className="w-3 h-3" />דרוש קוד
+                    <span className="text-xs font-normal flex items-center gap-1">
+                      {isGoogleParent ? (
+                        <><Unlock className="w-3 h-3 text-emerald-500" /><span className="text-emerald-600">כניסה חופשית</span></>
+                      ) : (
+                        <><Lock className="w-3 h-3 text-indigo-500" /><span className="text-indigo-500">דרוש קוד</span></>
+                      )}
                     </span>
                   </button>
                 ))}
