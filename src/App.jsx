@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   CheckCircle, Clock, Plus, User, Users, Coins, LogOut,
   Check, X, RefreshCw, Wallet, ShieldCheck, Settings,
-  Trash2, Lock, ArrowRight, Delete, Star, Gift, History,
-  Zap, Heart, TrendingUp, ChevronDown, ChevronUp,
+  Trash2, Lock, Delete, Star, Gift, History,
+  Heart, TrendingUp, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
@@ -31,11 +31,20 @@ const choresCol = () => collection(db, 'artifacts', APP_ID, 'public', 'data', 'c
 const choreRef  = (id) => doc(db, 'artifacts', APP_ID, 'public', 'data', 'chores', id);
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+const APP_VERSION = '1.1.0';
+const STORAGE_KEY = 'fca_session';
 const AVATARS = ['🦁', '🐯', '🐼', '🦊', '🐨', '🐸', '🐧', '🦋', '🐬', '🦄', '🐙', '🐲'];
 const today   = () => new Date().toISOString().slice(0, 10);
 const yesterday = () => {
   const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10);
 };
+
+// ─── Session helpers ──────────────────────────────────────────────────────────
+const saveSession   = (profile) => {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ id: profile.id, type: profile.type })); } catch {}
+};
+const clearSession  = () => { try { localStorage.removeItem(STORAGE_KEY); } catch {} };
+const loadSession   = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; } };
 
 // ─── Confetti ─────────────────────────────────────────────────────────────────
 function Confetti() {
@@ -111,23 +120,29 @@ function PinEntry({ profile, correctPin, onSuccess, onBack }) {
             }`} />
           ))}
         </div>
-        {/* Numpad */}
-        <div className="grid grid-cols-3 gap-3 mb-3">
+        {/* Numpad — dir="ltr" so 1 always appears on the left regardless of page RTL */}
+        <div dir="ltr" className="grid grid-cols-3 gap-3 mb-2">
           {[1,2,3,4,5,6,7,8,9].map(n => (
             <button key={n} onClick={() => handleDigit(String(n))}
-              className="h-14 rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-95 text-xl font-bold text-gray-800 border border-gray-200 transition-all">
+              className="h-14 rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-95 text-xl font-bold text-gray-800 border border-gray-200 transition-all select-none">
               {n}
             </button>
           ))}
-          <button onClick={onBack} className="h-14 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-500 border border-gray-200 flex items-center justify-center">
-            <ArrowRight className="w-5 h-5" />
+          {/* Bottom row: empty | 0 | backspace */}
+          <div />
+          <button onClick={() => handleDigit('0')}
+            className="h-14 rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-95 text-xl font-bold text-gray-800 border border-gray-200 transition-all select-none">
+            0
           </button>
-          <button onClick={() => handleDigit('0')} className="h-14 rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-95 text-xl font-bold text-gray-800 border border-gray-200 transition-all">0</button>
-          <button onClick={() => setEntered(e => e.slice(0, -1))} className="h-14 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-500 border border-gray-200 flex items-center justify-center">
+          <button onClick={() => setEntered(e => e.slice(0, -1))}
+            className="h-14 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-400 border border-gray-200 flex items-center justify-center transition-all">
             <Delete className="w-5 h-5" />
           </button>
         </div>
-        {error && <p className="text-red-500 text-sm font-bold mt-2">קוד שגוי, נסה שוב 🔒</p>}
+        <button onClick={onBack} className="text-xs text-gray-400 hover:text-gray-600 mt-1 py-1 transition-colors">
+          ביטול
+        </button>
+        {error && <p className="text-red-500 text-sm font-bold mt-1">קוד שגוי, נסה שוב 🔒</p>}
       </div>
     </div>
   );
@@ -214,8 +229,15 @@ export default function App() {
     kids: [{ id: 'k1', name: 'ילד 1', balance: 0, pin: '', avatar: '🦁' }],
   });
 
-  const fileInputRef  = useRef(null);
-  const prevChoresRef = useRef([]);
+  const fileInputRef      = useRef(null);
+  const prevChoresRef     = useRef([]);
+  const sessionRestoredRef = useRef(false);
+
+  // Save profile to localStorage and set as active
+  const loginAs = useCallback((profile) => {
+    saveSession(profile);
+    setCurrentProfile(profile);
+  }, []);
 
   // ── Auth ────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -231,8 +253,25 @@ export default function App() {
   useEffect(() => {
     if (!authUser) return;
     const unsubConfig = onSnapshot(configRef(), snap => {
-      setFamilyConfig(snap.exists() ? snap.data() : { isSetup: false, parents: [], kids: [] });
+      const config = snap.exists() ? snap.data() : { isSetup: false, parents: [], kids: [] };
+      setFamilyConfig(config);
       setLoadingInit(false);
+
+      // Restore saved session — runs only once after first config load
+      if (config.isSetup && !sessionRestoredRef.current) {
+        sessionRestoredRef.current = true;
+        const saved = loadSession();
+        if (saved) {
+          const match = saved.type === 'parent'
+            ? config.parents?.find(p => p.id === saved.id)
+            : config.kids?.find(k => k.id === saved.id);
+          if (match) {
+            const restoredProfile = { ...match, type: saved.type };
+            setSelectedProfile(restoredProfile);
+            setCurrentProfile(restoredProfile);   // skip PIN — session already authenticated
+          }
+        }
+      }
     });
     const unsubChores = onSnapshot(choresCol(), snap => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -433,14 +472,23 @@ export default function App() {
     await updateDoc(configRef(), { kids: updatedKids });
   };
 
-  const logout = () => { setCurrentProfile(null); setSelectedProfile(null); setActiveTab('dashboard'); };
+  const logout = () => {
+    clearSession();
+    setCurrentProfile(null);
+    setSelectedProfile(null);
+    setActiveTab('dashboard');
+  };
 
   const handleSelectProfile = (profile) => {
     if (profile.type === 'kid') {
       const kidConfig = familyConfig.kids.find(k => k.id === profile.id);
-      if (!kidConfig?.pin) { setSelectedProfile(profile); setCurrentProfile(profile); return; }
+      if (!kidConfig?.pin) {
+        setSelectedProfile(profile);
+        loginAs(profile);   // no PIN → log in and save session immediately
+        return;
+      }
     }
-    setSelectedProfile(profile);
+    setSelectedProfile(profile);  // has PIN → show numpad next
   };
 
   // ── Loading ──────────────────────────────────────────────────────────────────
@@ -521,6 +569,7 @@ export default function App() {
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
         <h1 className="text-3xl font-bold text-gray-800 mb-1">מי משתמש כעת? 🏠</h1>
         <p className="text-sm text-gray-400 mb-6">בחר פרופיל להמשך</p>
+
         <div className="grid grid-cols-2 gap-3 mb-6">
           {familyConfig?.parents.map(p => (
             <button key={p.id} onClick={() => handleSelectProfile({type:'parent',...p})}
@@ -548,6 +597,7 @@ export default function App() {
             </button>
           ))}
         </div>
+        <p className="text-xs text-gray-300 mt-6">גרסה {APP_VERSION}</p>
       </div>
     </div>
   );
@@ -559,7 +609,7 @@ export default function App() {
       : familyConfig.kids.find(k => k.id === selectedProfile.id)?.pin;
     return (
       <PinEntry profile={selectedProfile} correctPin={correctPin}
-        onSuccess={() => setCurrentProfile(selectedProfile)}
+        onSuccess={() => loginAs(selectedProfile)}
         onBack={() => setSelectedProfile(null)} />
     );
   }

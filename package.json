@@ -2,6 +2,11 @@
   "name": "family-chores-app",
   "private": true,
   "version": "1.0.0",
+  "homepage": "https://vercel.com/danielrojansky-8273s-projects/family_app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danielrojansky/family-chores-app"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
