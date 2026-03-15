@@ -182,6 +182,67 @@ export default async function handler(req, res) {
         return res.json({ ok: true });
       }
 
+      // ── User management ────────────────────────────────────────────────
+      case 'listUsers': {
+        const emails = await kv.smembers('app:users');
+        const users = [];
+        for (const email of emails || []) {
+          const user = await kv.get(`app:users:${email}`);
+          if (user) users.push({
+            email: user.email,
+            name: user.name,
+            picture: user.picture,
+            provider: user.provider,
+            families: user.families || [],
+            createdAt: user.createdAt,
+          });
+        }
+        users.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        return res.json({ users });
+      }
+
+      case 'assignUserToFamily': {
+        const { email, familyId, name: displayName, role } = payload;
+        if (!email || !familyId) return res.status(400).json({ error: 'Missing email or familyId' });
+
+        const userKey = `app:users:${email.toLowerCase()}`;
+        const user = await kv.get(userKey);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Get family name for display
+        const familyConfig = await kv.get(`family:${familyId}:config`);
+        const familyName = displayName || (familyConfig?.parents || []).map(p => p.name).join(' & ') || familyId;
+
+        // Add family to user's list (avoid duplicates)
+        user.families = (user.families || []).filter(f => f.familyId !== familyId);
+        user.families.push({ familyId, name: familyName, role: role || 'member' });
+        await kv.set(userKey, user);
+
+        return res.json({ ok: true });
+      }
+
+      case 'removeUserFromFamily': {
+        const { email, familyId } = payload;
+        if (!email || !familyId) return res.status(400).json({ error: 'Missing email or familyId' });
+
+        const userKey = `app:users:${email.toLowerCase()}`;
+        const user = await kv.get(userKey);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        user.families = (user.families || []).filter(f => f.familyId !== familyId);
+        await kv.set(userKey, user);
+
+        return res.json({ ok: true });
+      }
+
+      case 'deleteUser': {
+        const { email } = payload;
+        if (!email) return res.status(400).json({ error: 'Missing email' });
+        await kv.del(`app:users:${email.toLowerCase()}`);
+        await kv.srem('app:users', email.toLowerCase());
+        return res.json({ ok: true });
+      }
+
       // ── Get logs ──────────────────────────────────────────────────────
       case 'getLogs': {
         const limit = payload.limit || 100;

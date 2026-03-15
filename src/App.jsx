@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, useParams } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import { FamilyProvider } from './context/FamilyContext';
 import FamilyApp from './components/family/FamilyApp';
 import Landing from './components/family/Landing';
@@ -17,11 +18,13 @@ function FamilyRoute() {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/family/:familyId/*" element={<FamilyRoute />} />
-      <Route path="/invite/:code" element={<InviteAccept />} />
-      <Route path="/admin" element={<AdminDashboard />} />
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/family/:familyId/*" element={<FamilyRoute />} />
+        <Route path="/invite/:code" element={<InviteAccept />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Routes>
+    </AuthProvider>
   );
 }

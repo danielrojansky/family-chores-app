@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ShieldCheck, Users, Link2, ScrollText, Settings, Lock,
-  Trash2, Eye, EyeOff, Copy, X, RefreshCw, Image,
-  ArrowRight,
+  Trash2, Copy, X, RefreshCw, Image, ArrowRight, UserPlus,
+  UserMinus, Mail,
 } from 'lucide-react';
 import { adminCall } from '../../lib/api';
 import { ADMIN_SESSION_KEY, APP_VERSION } from '../../constants';
@@ -122,7 +122,6 @@ function FamilyManagement({ token }) {
 
           {expandedFamily === f.id && familyDetail && (
             <div className="p-4 border-t space-y-4">
-              {/* Parents */}
               <div>
                 <h4 className="font-bold text-sm text-gray-600 mb-2">הורים</h4>
                 {familyDetail.config?.parents?.map((p) => (
@@ -133,7 +132,6 @@ function FamilyManagement({ token }) {
                   </div>
                 ))}
               </div>
-              {/* Kids */}
               <div>
                 <h4 className="font-bold text-sm text-gray-600 mb-2">ילדים</h4>
                 {familyDetail.config?.kids?.map((k) => (
@@ -144,7 +142,6 @@ function FamilyManagement({ token }) {
                   </div>
                 ))}
               </div>
-              {/* Chores with media */}
               {familyDetail.chores?.filter((c) => c.proofImage).length > 0 && (
                 <div>
                   <h4 className="font-bold text-sm text-gray-600 mb-2">מדיה (הוכחות)</h4>
@@ -162,10 +159,9 @@ function FamilyManagement({ token }) {
         </div>
       ))}
 
-      {/* Reset PIN modal */}
       {resetPinData && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl">
+          <div dir="rtl" className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl">
             <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Lock className="w-5 h-5" />איפוס קוד</h3>
             <input type="password" inputMode="numeric" maxLength={4} value={newPin}
               onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
@@ -174,6 +170,163 @@ function FamilyManagement({ token }) {
               <button onClick={resetPin} disabled={newPin.length !== 4}
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold p-3 rounded-xl">שמור</button>
               <button onClick={() => { setResetPinData(null); setNewPin(''); }}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-3 rounded-xl">ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── User Management Tab ────────────────────────────────────────────────────
+function UserManagement({ token }) {
+  const [users, setUsers] = useState([]);
+  const [families, setFamilies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedUser, setExpandedUser] = useState(null);
+  const [assignData, setAssignData] = useState(null);
+
+  const loadData = useCallback(async () => {
+    try {
+      const [usersRes, familiesRes] = await Promise.all([
+        adminCall('listUsers', {}, token),
+        adminCall('listFamilies', {}, token),
+      ]);
+      setUsers(usersRes.users || []);
+      setFamilies(familiesRes.families || []);
+    } catch {} finally { setLoading(false); }
+  }, [token]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const assignFamily = async () => {
+    if (!assignData?.email || !assignData?.familyId) return;
+    try {
+      await adminCall('assignUserToFamily', {
+        email: assignData.email,
+        familyId: assignData.familyId,
+        name: assignData.name || '',
+        role: assignData.role || 'member',
+      }, token);
+      setAssignData(null);
+      await loadData();
+    } catch (err) { alert(err.message); }
+  };
+
+  const removeFromFamily = async (email, familyId) => {
+    if (!confirm('הסר משתמש ממשפחה?')) return;
+    try {
+      await adminCall('removeUserFromFamily', { email, familyId }, token);
+      await loadData();
+    } catch (err) { alert(err.message); }
+  };
+
+  const deleteUser = async (email) => {
+    if (!confirm(`למחוק את המשתמש ${email}? פעולה זו בלתי הפיכה.`)) return;
+    try {
+      await adminCall('deleteUser', { email }, token);
+      await loadData();
+      if (expandedUser === email) setExpandedUser(null);
+    } catch (err) { alert(err.message); }
+  };
+
+  if (loading) return <p className="text-center text-gray-400 py-8">טוען...</p>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold text-lg flex items-center gap-2"><Mail className="w-5 h-5 text-indigo-500" />משתמשים ({users.length})</h2>
+        <button onClick={loadData} className="p-2 hover:bg-gray-100 rounded-lg"><RefreshCw className="w-4 h-4 text-gray-400" /></button>
+      </div>
+
+      {users.length === 0 && <p className="text-gray-400 text-center py-6">אין משתמשים רשומים עדיין</p>}
+
+      {users.map((u) => (
+        <div key={u.email} className="border rounded-xl overflow-hidden">
+          <div className="p-4 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+            onClick={() => setExpandedUser(expandedUser === u.email ? null : u.email)}>
+            <div className="flex items-center gap-3 min-w-0">
+              {u.picture ? (
+                <img src={u.picture} alt="" className="w-8 h-8 rounded-full shrink-0" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-sm shrink-0">
+                  {u.name?.charAt(0) || '?'}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="font-bold text-sm truncate">{u.name}</p>
+                <p className="text-xs text-gray-400 truncate" dir="ltr">{u.email}</p>
+              </div>
+            </div>
+            <div className="flex gap-1 items-center shrink-0">
+              <span className="text-xs text-gray-400">{u.provider || 'email'}</span>
+              <span className="text-xs bg-gray-200 px-2 py-0.5 rounded-full">{(u.families || []).length} משפחות</span>
+            </div>
+          </div>
+
+          {expandedUser === u.email && (
+            <div className="p-4 border-t space-y-3">
+              <div>
+                <h4 className="font-bold text-xs text-gray-500 mb-2">משפחות משויכות</h4>
+                {(u.families || []).length === 0 && <p className="text-xs text-gray-400">לא משויך לאף משפחה</p>}
+                {(u.families || []).map((f) => (
+                  <div key={f.familyId} className="flex items-center justify-between py-1.5 border-b last:border-0">
+                    <div className="min-w-0">
+                      <span className="text-sm font-bold truncate block">{f.name || f.familyId}</span>
+                      <span className="text-xs text-gray-400">{f.role || 'member'}</span>
+                    </div>
+                    <button onClick={() => removeFromFamily(u.email, f.familyId)}
+                      className="text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded flex items-center gap-1 shrink-0">
+                      <UserMinus className="w-3 h-3" />הסר
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={() => setAssignData({ email: u.email, familyId: '', name: '', role: 'member' })}
+                className="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg flex items-center gap-1 font-bold transition-colors">
+                <UserPlus className="w-3 h-3" />שייך למשפחה
+              </button>
+
+              <button onClick={() => deleteUser(u.email)}
+                className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1">
+                <Trash2 className="w-3 h-3" />מחק משתמש
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {assignData && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div dir="rtl" className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl space-y-4">
+            <h3 className="font-bold text-lg flex items-center gap-2"><UserPlus className="w-5 h-5 text-indigo-500" />שייך למשפחה</h3>
+            <p className="text-sm text-gray-500 truncate">{assignData.email}</p>
+
+            <select value={assignData.familyId}
+              onChange={(e) => setAssignData({ ...assignData, familyId: e.target.value })}
+              className="w-full p-3 border rounded-xl">
+              <option value="">בחר משפחה</option>
+              {families.map((f) => <option key={f.id} value={f.id}>{f.name || f.id}</option>)}
+            </select>
+
+            <input type="text" value={assignData.name}
+              onChange={(e) => setAssignData({ ...assignData, name: e.target.value })}
+              className="w-full p-3 border rounded-xl text-sm" placeholder="שם תצוגה (אופציונלי)" />
+
+            <select value={assignData.role}
+              onChange={(e) => setAssignData({ ...assignData, role: e.target.value })}
+              className="w-full p-3 border rounded-xl">
+              <option value="member">חבר/ה</option>
+              <option value="parent">הורה</option>
+              <option value="kid">ילד/ה</option>
+            </select>
+
+            <div className="flex gap-2">
+              <button onClick={assignFamily} disabled={!assignData.familyId}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold p-3 rounded-xl transition-colors">שייך</button>
+              <button onClick={() => setAssignData(null)}
                 className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-3 rounded-xl">ביטול</button>
             </div>
           </div>
@@ -368,6 +521,7 @@ export default function AdminDashboard() {
 
   const tabs = [
     { id: 'families', label: 'משפחות', icon: Users },
+    { id: 'users', label: 'משתמשים', icon: Mail },
     { id: 'invites', label: 'הזמנות', icon: Link2 },
     { id: 'logs', label: 'לוגים', icon: ScrollText },
     { id: 'settings', label: 'הגדרות', icon: Settings },
@@ -391,7 +545,6 @@ export default function AdminDashboard() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 mt-4">
-        {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white rounded-xl p-1 shadow-sm border overflow-x-auto">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setTab(id)}
@@ -403,9 +556,9 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        {/* Content */}
         <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border mb-8">
           {tab === 'families' && <FamilyManagement token={token} />}
+          {tab === 'users' && <UserManagement token={token} />}
           {tab === 'invites' && <InviteManagement token={token} />}
           {tab === 'logs' && <LogViewer token={token} />}
           {tab === 'settings' && <AdminConfig token={token} />}
