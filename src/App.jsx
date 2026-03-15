@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const STORAGE_KEY = 'fca_session';
 const AVATARS     = ['🦁', '🐯', '🐼', '🦊', '🐨', '🐸', '🐧', '🦋', '🐬', '🦄', '🐙', '🐲'];
 const today       = () => new Date().toISOString().slice(0, 10);
@@ -50,7 +50,7 @@ function Confetti() {
           }}
         />
       ))}
-      <style>{`@keyframes confettiFall { 0%{transform:translateY(0) rotate(0deg);opacity:1} 100%{transform:translateY(100vh) rotate(720deg);opacity:0} }`}</style>
+      <style>{`@keyframes confettiFall{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
     </div>
   );
 }
@@ -82,41 +82,42 @@ function PinEntry({ profile, correctPin, onSuccess, onBack }) {
 
   return (
     <div dir="rtl" className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-8 text-center">
-        <div className={`w-16 h-16 ${accent} rounded-full flex items-center justify-center mx-auto mb-4 text-3xl`}>
-          {isParent ? <ShieldCheck className="w-8 h-8 text-white" /> : (profile.avatar || '🧒')}
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 sm:p-8 text-center">
+        <div className={`w-14 h-14 sm:w-16 sm:h-16 ${accent} rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 text-2xl sm:text-3xl`}>
+          {isParent ? <ShieldCheck className="w-7 h-7 sm:w-8 sm:h-8 text-white" /> : (profile.avatar || '🧒')}
         </div>
-        <h2 className="text-xl font-bold text-gray-800 mb-1">שלום, {profile.name}</h2>
-        <p className="text-sm text-gray-400 mb-6 flex items-center justify-center gap-1">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-1">שלום, {profile.name}</h2>
+        <p className="text-xs sm:text-sm text-gray-400 mb-5 sm:mb-6 flex items-center justify-center gap-1">
           <Lock className="w-3 h-3" /> הכנס קוד כניסה
         </p>
-        <div className={`flex justify-center gap-4 mb-6 ${shake ? 'animate-bounce' : ''}`}>
+        {/* PIN dots */}
+        <div className={`flex justify-center gap-3 sm:gap-4 mb-5 sm:mb-6 ${shake ? 'animate-bounce' : ''}`}>
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className={`w-5 h-5 rounded-full border-2 transition-all duration-150 ${
+            <div key={i} className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 transition-all duration-150 ${
               i < entered.length ? dotFill : error ? 'border-red-400 bg-red-100' : 'border-gray-300'
             }`} />
           ))}
         </div>
-        {/* Standard phone numpad — dir=ltr so 1 is always on the left */}
-        <div dir="ltr" className="grid grid-cols-3 gap-3 mb-2">
+        {/* Standard phone numpad — dir=ltr keeps 1 on the left regardless of RTL page */}
+        <div dir="ltr" className="grid grid-cols-3 gap-2 sm:gap-3 mb-2">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
             <button key={n} onClick={() => handleDigit(String(n))}
-              className="h-14 rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-95 text-xl font-bold text-gray-800 border border-gray-200 transition-all select-none">
+              className="h-12 sm:h-14 rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-95 text-lg sm:text-xl font-bold text-gray-800 border border-gray-200 transition-all select-none">
               {n}
             </button>
           ))}
           <div />
           <button onClick={() => handleDigit('0')}
-            className="h-14 rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-95 text-xl font-bold text-gray-800 border border-gray-200 transition-all select-none">
+            className="h-12 sm:h-14 rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-95 text-lg sm:text-xl font-bold text-gray-800 border border-gray-200 transition-all select-none">
             0
           </button>
           <button onClick={() => setEntered((e) => e.slice(0, -1))}
-            className="h-14 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-400 border border-gray-200 flex items-center justify-center">
-            <Delete className="w-5 h-5" />
+            className="h-12 sm:h-14 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-400 border border-gray-200 flex items-center justify-center">
+            <Delete className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
         <button onClick={onBack} className="text-xs text-gray-400 hover:text-gray-600 mt-1 py-1 transition-colors">ביטול</button>
-        {error && <p className="text-red-500 text-sm font-bold mt-1">קוד שגוי, נסה שוב 🔒</p>}
+        {error && <p className="text-red-500 text-xs sm:text-sm font-bold mt-1">קוד שגוי, נסה שוב 🔒</p>}
       </div>
     </div>
   );
@@ -127,9 +128,11 @@ function BonusModal({ kid, onConfirm, onClose }) {
   const [amount, setAmount] = useState('');
   const [note,   setNote]   = useState('');
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div dir="rtl" className="bg-white p-6 rounded-2xl max-w-sm w-full shadow-2xl">
-        <h3 className="font-bold text-xl mb-1 flex items-center gap-2"><Star className="text-yellow-500 w-5 h-5" />בונוס מיוחד ל{kid.name}</h3>
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div dir="rtl" className="bg-white p-5 sm:p-6 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm shadow-2xl">
+        <h3 className="font-bold text-lg sm:text-xl mb-1 flex items-center gap-2">
+          <Star className="text-yellow-500 w-5 h-5" />בונוס מיוחד ל{kid.name}
+        </h3>
         <p className="text-sm text-gray-500 mb-4">הוסף מטבעות בגין מאמץ מיוחד, עזרה, יום הולדת...</p>
         <input type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)}
           className="w-full p-3 border rounded-xl mb-3 text-center text-2xl font-bold" placeholder="כמה מטבעות?" autoFocus />
@@ -151,13 +154,15 @@ function BonusModal({ kid, onConfirm, onClose }) {
 function RejectModal({ chore, onConfirm, onClose }) {
   const [note, setNote] = useState('');
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div dir="rtl" className="bg-white p-6 rounded-2xl max-w-sm w-full shadow-2xl">
-        <h3 className="font-bold text-xl mb-1 flex items-center gap-2"><X className="text-red-500 w-5 h-5" />דחיית מטלה</h3>
-        <p className="text-gray-600 mb-1 font-bold">{chore.title}</p>
-        <p className="text-sm text-gray-500 mb-4">כתוב הסבר קצר לילד — הוא יראה את ההודעה</p>
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div dir="rtl" className="bg-white p-5 sm:p-6 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm shadow-2xl">
+        <h3 className="font-bold text-lg sm:text-xl mb-1 flex items-center gap-2">
+          <X className="text-red-500 w-5 h-5" />דחיית מטלה
+        </h3>
+        <p className="text-gray-600 mb-1 font-bold truncate">{chore.title}</p>
+        <p className="text-sm text-gray-500 mb-3">כתוב הסבר קצר לילד — הוא יראה את ההודעה</p>
         <textarea value={note} onChange={(e) => setNote(e.target.value)}
-          className="w-full p-3 border rounded-xl mb-4 resize-none h-24" placeholder="למשל: הספה לא מסודרת מספיק, נסה שוב" autoFocus />
+          className="w-full p-3 border rounded-xl mb-4 resize-none h-20 sm:h-24" placeholder="למשל: הספה לא מסודרת מספיק, נסה שוב" autoFocus />
         <div className="flex gap-2">
           <button onClick={() => onConfirm(note)} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold p-3 rounded-xl transition-colors">שלח דחייה</button>
           <button onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-3 rounded-xl">ביטול</button>
@@ -191,7 +196,7 @@ export default function App() {
   const [proofImage,        setProofImage]         = useState(null);
   const [showConfetti,      setShowConfetti]        = useState(false);
   const [showHistory,       setShowHistory]         = useState(false);
-  const [showWishlist,      setShowWishlist]        = useState(false);
+  const [showWishlist,      setShowWishlist]         = useState(false);
   const [newWishItem,       setNewWishItem]          = useState('');
 
   const [setupData, setSetupData] = useState({
@@ -203,7 +208,7 @@ export default function App() {
   const prevApprovedRef    = useRef(new Set());
   const sessionRestoredRef = useRef(false);
 
-  // ── Session restore (once config loads) ────────────────────────────────────
+  // ── Session restore ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!familyConfig?.isSetup || sessionRestoredRef.current) return;
     sessionRestoredRef.current = true;
@@ -219,7 +224,7 @@ export default function App() {
     }
   }, [familyConfig]);
 
-  // ── Keep currentProfile in sync with live config (balance, streak …) ───────
+  // ── Keep currentProfile in sync with live config ───────────────────────────
   useEffect(() => {
     if (!currentProfile || !familyConfig) return;
     if (currentProfile.type === 'kid') {
@@ -247,7 +252,6 @@ export default function App() {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const appendActivity = (config, entry) => [entry, ...(config.activityLog || [])].slice(0, 30);
-
   const calcStreak = (kid) => {
     if (!kid.lastStreakDate) return 1;
     if (kid.lastStreakDate === today())     return kid.streak || 1;
@@ -256,7 +260,6 @@ export default function App() {
   };
 
   const loginAs = useCallback((profile) => { saveSession(profile); setCurrentProfile(profile); }, []);
-
   const logout  = () => { clearSession(); setCurrentProfile(null); setSelectedProfile(null); setActiveTab('dashboard'); };
 
   const handleSelectProfile = (profile) => {
@@ -267,7 +270,7 @@ export default function App() {
     setSelectedProfile(profile);
   };
 
-  // ── Handlers (all use apiCall then mutate) ─────────────────────────────────
+  // ── Data handlers ──────────────────────────────────────────────────────────
   const handleSetupFamily = async (e) => {
     e.preventDefault();
     if (!setupData.parentPin || setupData.parentPin.length !== 4) { alert('נדרש קוד הורים בן 4 ספרות'); return; }
@@ -378,7 +381,7 @@ export default function App() {
     await mutateChores();
   };
 
-  const handleDeleteChore = async (id) => { await apiCall('deleteChore', { id }); await mutateChores(); };
+  const handleDeleteChore   = async (id) => { await apiCall('deleteChore', { id }); await mutateChores(); };
 
   const handlePayout = async (kidId) => {
     const updatedKids = familyConfig.kids.map((k) => k.id === kidId ? { ...k, balance: 0 } : k);
@@ -410,18 +413,23 @@ export default function App() {
   // ── VIEW 1: Setup ──────────────────────────────────────────────────────────
   if (!familyConfig.isSetup) return (
     <div dir="rtl" className="min-h-screen bg-indigo-50 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-lg">
-        <h1 className="text-3xl font-bold text-center text-indigo-900 mb-1">הגדרת משפחה 👋</h1>
-        <p className="text-center text-gray-500 mb-6 text-sm">הגדרה חד-פעמית — הכל נשמר בענן</p>
-        <form onSubmit={handleSetupFamily} className="space-y-6">
+      <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-xl w-full max-w-lg">
+        <h1 className="text-2xl sm:text-3xl font-bold text-center text-indigo-900 mb-1">הגדרת משפחה 👋</h1>
+        <p className="text-center text-gray-500 mb-5 sm:mb-6 text-sm">הגדרה חד-פעמית — הכל נשמר בענן</p>
+        <form onSubmit={handleSetupFamily} className="space-y-5 sm:space-y-6">
           <div>
             <h3 className="font-bold text-gray-800 border-b pb-2 mb-3">הורים</h3>
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <input type="text" value={setupData.parent1} onChange={(e) => setSetupData({ ...setupData, parent1: e.target.value })} className="p-3 border rounded-xl" placeholder="הורה 1" />
-              <input type="text" value={setupData.parent2} onChange={(e) => setSetupData({ ...setupData, parent2: e.target.value })} className="p-3 border rounded-xl" placeholder="הורה 2 (אופציונלי)" />
+            {/* Stack on mobile, side-by-side on sm+ */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <input type="text" value={setupData.parent1} onChange={(e) => setSetupData({ ...setupData, parent1: e.target.value })}
+                className="p-3 border rounded-xl" placeholder="הורה 1" />
+              <input type="text" value={setupData.parent2} onChange={(e) => setSetupData({ ...setupData, parent2: e.target.value })}
+                className="p-3 border rounded-xl" placeholder="הורה 2 (אופציונלי)" />
             </div>
             <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-              <label className="flex items-center gap-2 text-sm font-bold text-indigo-800 mb-2"><Lock className="w-4 h-4" />קוד הורים — 4 ספרות (חובה)</label>
+              <label className="flex items-center gap-2 text-sm font-bold text-indigo-800 mb-2">
+                <Lock className="w-4 h-4" />קוד הורים — 4 ספרות (חובה)
+              </label>
               <input type="password" inputMode="numeric" maxLength={4} required value={setupData.parentPin}
                 onChange={(e) => setSetupData({ ...setupData, parentPin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
                 className="w-full p-3 border rounded-xl text-center text-2xl tracking-[0.5em]" placeholder="••••" />
@@ -434,15 +442,16 @@ export default function App() {
                 <div className="flex gap-2 mb-2">
                   <input type="text" required value={kid.name}
                     onChange={(e) => { const kids = [...setupData.kids]; kids[idx] = { ...kids[idx], name: e.target.value }; setSetupData({ ...setupData, kids }); }}
-                    className="flex-1 p-3 border rounded-xl bg-white" placeholder={`שם ילד ${idx + 1}`} />
+                    className="flex-1 p-3 border rounded-xl bg-white min-w-0" placeholder={`שם ילד ${idx + 1}`} />
                   <input type="password" inputMode="numeric" maxLength={4} value={kid.pin}
                     onChange={(e) => { const kids = [...setupData.kids]; kids[idx] = { ...kids[idx], pin: e.target.value.replace(/\D/g, '').slice(0, 4) }; setSetupData({ ...setupData, kids }); }}
-                    className="w-24 p-3 border rounded-xl bg-white text-center tracking-widest" placeholder="קוד" />
+                    className="w-20 sm:w-24 p-3 border rounded-xl bg-white text-center tracking-widest shrink-0" placeholder="קוד" />
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                {/* Avatar picker — 6-per-row grid prevents overflow */}
+                <div className="grid grid-cols-6 gap-1 sm:gap-1.5">
                   {AVATARS.map((a) => (
                     <button key={a} type="button" onClick={() => { const kids = [...setupData.kids]; kids[idx] = { ...kids[idx], avatar: a }; setSetupData({ ...setupData, kids }); }}
-                      className={`text-xl p-1 rounded-lg border-2 transition-all ${kid.avatar === a ? 'border-indigo-500 bg-indigo-50' : 'border-transparent hover:border-gray-300'}`}>
+                      className={`text-lg sm:text-xl p-1 rounded-lg border-2 transition-all ${kid.avatar === a ? 'border-indigo-500 bg-indigo-50 scale-110' : 'border-transparent hover:border-gray-300'}`}>
                       {a}
                     </button>
                   ))}
@@ -458,7 +467,9 @@ export default function App() {
               )}
             </div>
           </div>
-          <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-md text-lg transition-colors">שמור והתחל 🚀</button>
+          <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 sm:py-4 rounded-xl shadow-md text-base sm:text-lg transition-colors">
+            שמור והתחל 🚀
+          </button>
         </form>
       </div>
     </div>
@@ -467,10 +478,11 @@ export default function App() {
   // ── VIEW 2: Profile picker ─────────────────────────────────────────────────
   if (!selectedProfile) return (
     <div dir="rtl" className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
-        <h1 className="text-3xl font-bold text-gray-800 mb-1">מי משתמש כעת? 🏠</h1>
-        <p className="text-sm text-gray-400 mb-6">בחר פרופיל להמשך</p>
-        <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">מי משתמש כעת? 🏠</h1>
+        <p className="text-sm text-gray-400 mb-5 sm:mb-6">בחר פרופיל להמשך</p>
+        {/* Parents — stack on very small, 2-col on sm+ */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5 sm:mb-6">
           {familyConfig.parents?.map((p) => (
             <button key={p.id} onClick={() => handleSelectProfile({ type: 'parent', ...p })}
               className="p-4 bg-indigo-50 text-indigo-800 rounded-xl font-bold border border-indigo-200 hover:bg-indigo-100 transition-colors flex flex-col items-center gap-1">
@@ -479,25 +491,25 @@ export default function App() {
             </button>
           ))}
         </div>
-        <div className="border-t pt-6 grid gap-3">
+        <div className="border-t pt-4 sm:pt-6 grid gap-3">
           {familyConfig.kids?.map((k) => (
             <button key={k.id} onClick={() => handleSelectProfile({ type: 'kid', ...k })}
-              className="p-4 bg-emerald-50 text-emerald-800 rounded-xl font-bold border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{k.avatar || '🧒'}</span>
-                <div className="text-right">
-                  <div>{k.name}</div>
+              className="p-3 sm:p-4 bg-emerald-50 text-emerald-800 rounded-xl font-bold border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-2xl shrink-0">{k.avatar || '🧒'}</span>
+                <div className="text-right min-w-0">
+                  <div className="truncate">{k.name}</div>
                   <div className="text-xs text-emerald-600 font-normal flex items-center gap-1">
                     {k.balance || 0} <Coins className="w-3 h-3 text-yellow-500" />
-                    {(k.streak || 0) > 1 && <span className="text-orange-500 mr-2">🔥{k.streak}</span>}
+                    {(k.streak || 0) > 1 && <span className="text-orange-500 mr-1">🔥{k.streak}</span>}
                   </div>
                 </div>
               </div>
-              {k.pin && <span className="text-xs text-emerald-500 flex items-center gap-1"><Lock className="w-3 h-3" />קוד</span>}
+              {k.pin && <span className="text-xs text-emerald-500 flex items-center gap-1 shrink-0 mr-2"><Lock className="w-3 h-3" />קוד</span>}
             </button>
           ))}
         </div>
-        <p className="text-xs text-gray-300 mt-6">גרסה {APP_VERSION}</p>
+        <p className="text-xs text-gray-300 mt-5 sm:mt-6">גרסה {APP_VERSION}</p>
       </div>
     </div>
   );
@@ -513,21 +525,25 @@ export default function App() {
   // ── Shared Header ──────────────────────────────────────────────────────────
   const Header = () => (
     <header className="bg-white shadow-sm sticky top-0 z-10">
-      <div className="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${currentProfile.type === 'parent' ? 'bg-indigo-100' : 'bg-emerald-100'}`}>
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-3 flex justify-between items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-lg sm:text-xl shrink-0 ${currentProfile.type === 'parent' ? 'bg-indigo-100' : 'bg-emerald-100'}`}>
             {currentProfile.type === 'parent' ? <ShieldCheck className="w-5 h-5 text-indigo-600" /> : (currentProfile.avatar || '🧒')}
           </div>
-          <div><p className="font-bold leading-tight">שלום, {currentProfile.name}</p><p className="text-xs text-gray-400">{currentProfile.type === 'parent' ? 'הורה' : 'ילד/ה'}</p></div>
+          <div className="min-w-0">
+            <p className="font-bold leading-tight text-sm sm:text-base truncate">שלום, {currentProfile.name}</p>
+            <p className="text-xs text-gray-400">{currentProfile.type === 'parent' ? 'הורה' : 'ילד/ה'}</p>
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1 sm:gap-2 shrink-0">
           {currentProfile.type === 'parent' && (
-            <button onClick={() => setActiveTab((t) => (t === 'settings' ? 'dashboard' : 'settings'))} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
+            <button onClick={() => setActiveTab((t) => (t === 'settings' ? 'dashboard' : 'settings'))}
+              className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
               <Settings className="w-5 h-5" />
             </button>
           )}
-          <button onClick={logout} className="p-2 text-red-400 hover:bg-red-50 rounded-lg flex items-center gap-1 transition-colors text-sm">
-            <LogOut className="w-4 h-4" /><span className="hidden sm:inline">החלף</span>
+          <button onClick={logout} className="p-2 text-red-400 hover:bg-red-50 rounded-lg flex items-center gap-1 transition-colors">
+            <LogOut className="w-4 h-4" /><span className="hidden sm:inline text-sm">החלף</span>
           </button>
         </div>
       </div>
@@ -538,13 +554,17 @@ export default function App() {
   if (currentProfile.type === 'parent' && activeTab === 'settings') return (
     <div dir="rtl" className="min-h-screen bg-gray-50 pb-10">
       <Header />
-      <main className="max-w-xl mx-auto px-4 mt-8 space-y-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border">
-          <h2 className="text-lg font-bold mb-5 flex items-center gap-2"><Users className="text-indigo-600 w-5 h-5" />עריכת בני משפחה</h2>
+      <main className="max-w-xl mx-auto px-4 mt-4 sm:mt-8 space-y-4 sm:space-y-6">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border">
+          <h2 className="text-base sm:text-lg font-bold mb-4 sm:mb-5 flex items-center gap-2">
+            <Users className="text-indigo-600 w-5 h-5" />עריכת בני משפחה
+          </h2>
           <FamilySettingsForm initialConfig={familyConfig} onSave={handleUpdateFamily} onCancel={() => setActiveTab('dashboard')} />
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border">
-          <h2 className="text-lg font-bold mb-5 flex items-center gap-2"><Lock className="text-indigo-600 w-5 h-5" />ניהול קודי כניסה</h2>
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border">
+          <h2 className="text-base sm:text-lg font-bold mb-4 sm:mb-5 flex items-center gap-2">
+            <Lock className="text-indigo-600 w-5 h-5" />ניהול קודי כניסה
+          </h2>
           <PinSettingsForm initialConfig={familyConfig} onSave={handleUpdatePins} onCancel={() => setActiveTab('dashboard')} />
         </div>
       </main>
@@ -561,26 +581,31 @@ export default function App() {
         <Header />
         {bonusTarget  && <BonusModal kid={bonusTarget} onConfirm={(a, n) => handleBonusCoins(bonusTarget.id, a, n)} onClose={() => setBonusTarget(null)} />}
         {rejectTarget && <RejectModal chore={rejectTarget} onConfirm={(n) => handleRejectChore(rejectTarget, n)} onClose={() => setRejectTarget(null)} />}
-        <main className="max-w-5xl mx-auto px-4 mt-6 space-y-6">
-          {/* Wallets */}
-          <section className="bg-white p-6 rounded-2xl shadow-sm border">
+        <main className="max-w-5xl mx-auto px-3 sm:px-4 mt-4 sm:mt-6 space-y-4 sm:space-y-6">
+
+          {/* Wallets — 1 col → 2 col → 4 col */}
+          <section className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border">
             <h3 className="font-bold mb-4 flex items-center gap-2"><Wallet className="text-indigo-500 w-5 h-5" />ארנקים</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {familyConfig.kids?.map((k) => (
-                <div key={k.id} className="bg-gray-50 p-4 rounded-xl border text-center">
-                  <div className="text-3xl mb-1">{k.avatar || '🧒'}</div>
+                <div key={k.id} className="bg-gray-50 p-3 sm:p-4 rounded-xl border text-center">
+                  <div className="text-2xl sm:text-3xl mb-1">{k.avatar || '🧒'}</div>
                   <div className="font-bold text-sm">{k.name}</div>
                   {(k.streak || 0) > 1 && <div className="text-xs text-orange-500 mb-1">🔥 {k.streak} ימים</div>}
-                  <div className="text-2xl font-black text-emerald-600 my-2 flex justify-center items-center gap-1">{k.balance || 0}<Coins className="w-5 h-5 text-yellow-500" /></div>
+                  <div className="text-xl sm:text-2xl font-black text-emerald-600 my-2 flex justify-center items-center gap-1">
+                    {k.balance || 0}<Coins className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
+                  </div>
                   <div className="flex gap-1">
                     <button onClick={() => handlePayout(k.id)} disabled={!k.balance}
                       className="flex-1 text-xs bg-white border p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-40 transition-colors">תשלום</button>
-                    <button onClick={() => setBonusTarget(k)} className="text-xs bg-yellow-50 border border-yellow-200 text-yellow-700 p-1.5 rounded-lg hover:bg-yellow-100 transition-colors"><Star className="w-3 h-3" /></button>
+                    <button onClick={() => setBonusTarget(k)} className="text-xs bg-yellow-50 border border-yellow-200 text-yellow-700 p-1.5 rounded-lg hover:bg-yellow-100 transition-colors">
+                      <Star className="w-3 h-3" />
+                    </button>
                   </div>
                   {(k.wishlist || []).length > 0 && (
-                    <div className="mt-2 text-xs text-gray-500 border-t pt-2">
+                    <div className="mt-2 text-xs text-gray-500 border-t pt-2 text-right">
                       <p className="font-bold text-gray-600 mb-1 flex items-center gap-1"><Gift className="w-3 h-3" />רשימת משאלות</p>
-                      {k.wishlist.map((w) => <div key={w.id} className="text-right">• {w.text}</div>)}
+                      {k.wishlist.map((w) => <div key={w.id} className="truncate">• {w.text}</div>)}
                     </div>
                   )}
                 </div>
@@ -588,36 +613,41 @@ export default function App() {
             </div>
           </section>
 
-          <div className="grid lg:grid-cols-3 gap-6">
+          {/* Main grid — single col on mobile, 3-col on lg */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+            {/* Left: add chore + reset + activity */}
             <div className="space-y-4">
-              <section className="bg-white p-6 rounded-2xl shadow-sm border">
+              <section className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border">
                 <h3 className="font-bold mb-4 flex items-center gap-2"><Plus className="text-indigo-500 w-5 h-5" />מטלה חדשה</h3>
                 <form onSubmit={handleAddChore} className="space-y-3">
-                  <input type="text" required value={newChore.title} onChange={(e) => setNewChore({ ...newChore, title: e.target.value })} className="w-full p-3 border rounded-xl" placeholder="שם המטלה" />
-                  <input type="number" required min="1" value={newChore.reward} onChange={(e) => setNewChore({ ...newChore, reward: e.target.value })} className="w-full p-3 border rounded-xl" placeholder="בונוס במטבעות" />
+                  <input type="text" required value={newChore.title} onChange={(e) => setNewChore({ ...newChore, title: e.target.value })}
+                    className="w-full p-3 border rounded-xl" placeholder="שם המטלה" />
+                  <input type="number" required min="1" value={newChore.reward} onChange={(e) => setNewChore({ ...newChore, reward: e.target.value })}
+                    className="w-full p-3 border rounded-xl" placeholder="בונוס במטבעות" />
                   <select value={newChore.assignedTo} onChange={(e) => setNewChore({ ...newChore, assignedTo: e.target.value })} className="w-full p-3 border rounded-xl">
                     <option value="all">לכל הילדים</option>
                     {familyConfig.kids?.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
                   </select>
                   <label className="flex items-center gap-2 cursor-pointer select-none text-sm">
-                    <input type="checkbox" checked={newChore.isRecurring} onChange={(e) => setNewChore({ ...newChore, isRecurring: e.target.checked })} className="w-4 h-4" />מטלה יומית קבועה
+                    <input type="checkbox" checked={newChore.isRecurring} onChange={(e) => setNewChore({ ...newChore, isRecurring: e.target.checked })} className="w-4 h-4" />
+                    מטלה יומית קבועה
                   </label>
                   <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-xl transition-colors">הוסף</button>
                 </form>
               </section>
-              <button onClick={handleResetRecurring} className="w-full bg-gray-200 hover:bg-gray-300 p-3 rounded-xl font-bold flex justify-center items-center gap-2 transition-colors">
+              <button onClick={handleResetRecurring} className="w-full bg-gray-200 hover:bg-gray-300 p-3 rounded-xl font-bold flex justify-center items-center gap-2 transition-colors text-sm">
                 <RefreshCw className="w-4 h-4" />אפס מטלות יומיות
               </button>
               {activityLog.length > 0 && (
-                <section className="bg-white p-5 rounded-2xl shadow-sm border">
+                <section className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border">
                   <h3 className="font-bold mb-3 flex items-center gap-2 text-sm"><TrendingUp className="text-indigo-400 w-4 h-4" />פעילות אחרונה</h3>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                  <div className="space-y-2 max-h-40 sm:max-h-56 overflow-y-auto">
                     {activityLog.map((e, i) => (
                       <div key={i} className="flex items-start gap-2 text-xs border-b pb-2 last:border-0">
-                        <span className="text-lg mt-0.5">{e.type === 'approved' ? '✅' : e.type === 'rejected' ? '❌' : '⭐'}</span>
-                        <div>
-                          <p className="font-bold text-gray-700">{e.kidName} — {e.choreTitle || 'בונוס'}{e.reward && <span className="text-emerald-600"> +{e.reward}🪙</span>}</p>
-                          {e.note && <p className="text-gray-500 italic">"{e.note}"</p>}
+                        <span className="text-base mt-0.5 shrink-0">{e.type === 'approved' ? '✅' : e.type === 'rejected' ? '❌' : '⭐'}</span>
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-700 truncate">{e.kidName} — {e.choreTitle || 'בונוס'}{e.reward && <span className="text-emerald-600"> +{e.reward}🪙</span>}</p>
+                          {e.note && <p className="text-gray-500 italic truncate">"{e.note}"</p>}
                           <p className="text-gray-400">{new Date(e.at).toLocaleDateString('he-IL')}</p>
                         </div>
                       </div>
@@ -627,25 +657,37 @@ export default function App() {
               )}
             </div>
 
-            <div className="lg:col-span-2 space-y-6">
+            {/* Right: pending + all chores */}
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
               {pendingChores.length > 0 && (
-                <section className="bg-orange-50 p-6 rounded-2xl border border-orange-200">
-                  <h3 className="font-bold text-orange-800 mb-4 flex items-center gap-2"><Clock className="w-5 h-5" />ממתינים לאישור ({pendingChores.length})</h3>
-                  <div className="space-y-4">
+                <section className="bg-orange-50 p-4 sm:p-6 rounded-2xl border border-orange-200">
+                  <h3 className="font-bold text-orange-800 mb-4 flex items-center gap-2">
+                    <Clock className="w-5 h-5" />ממתינים לאישור ({pendingChores.length})
+                  </h3>
+                  <div className="space-y-3">
                     {pendingChores.map((chore) => {
                       const kid = familyConfig.kids?.find((k) => k.id === chore.completedBy);
                       return (
-                        <div key={chore.id} className="bg-white p-4 rounded-xl border border-orange-100 flex flex-col md:flex-row gap-4 items-center justify-between">
-                          <div>
+                        <div key={chore.id} className="bg-white p-3 sm:p-4 rounded-xl border border-orange-100 flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
+                          <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xl">{kid?.avatar || '🧒'}</span>
-                              <div><h4 className="font-bold">{chore.title}</h4><p className="text-sm text-gray-500">{kid?.name} | {chore.reward} <Coins className="inline w-3 h-3" /></p></div>
+                              <span className="text-xl shrink-0">{kid?.avatar || '🧒'}</span>
+                              <div className="min-w-0">
+                                <h4 className="font-bold truncate">{chore.title}</h4>
+                                <p className="text-sm text-gray-500">{kid?.name} | {chore.reward} <Coins className="inline w-3 h-3" /></p>
+                              </div>
                             </div>
-                            {chore.proofImage && <img src={chore.proofImage} alt="הוכחה" className="h-20 mt-2 rounded border cursor-pointer hover:opacity-80" onClick={() => window.open(chore.proofImage)} />}
+                            {chore.proofImage && (
+                              <img src={chore.proofImage} alt="הוכחה" className="h-16 sm:h-20 mt-2 rounded border cursor-pointer hover:opacity-80" onClick={() => window.open(chore.proofImage)} />
+                            )}
                           </div>
-                          <div className="flex gap-2 w-full md:w-auto shrink-0">
-                            <button onClick={() => handleApproveChore(chore)} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white p-2 rounded-lg flex justify-center items-center gap-1 transition-colors"><Check className="w-4 h-4" />אישור</button>
-                            <button onClick={() => setRejectTarget(chore)} className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 p-2 rounded-lg flex justify-center items-center gap-1 transition-colors"><X className="w-4 h-4" />דחייה</button>
+                          <div className="flex gap-2 w-full sm:w-auto shrink-0">
+                            <button onClick={() => handleApproveChore(chore)} className="flex-1 sm:flex-none bg-emerald-500 hover:bg-emerald-600 text-white p-2 px-3 rounded-lg flex justify-center items-center gap-1 transition-colors text-sm">
+                              <Check className="w-4 h-4" />אישור
+                            </button>
+                            <button onClick={() => setRejectTarget(chore)} className="flex-1 sm:flex-none bg-red-100 hover:bg-red-200 text-red-700 p-2 px-3 rounded-lg flex justify-center items-center gap-1 transition-colors text-sm">
+                              <X className="w-4 h-4" />דחייה
+                            </button>
                           </div>
                         </div>
                       );
@@ -653,23 +695,30 @@ export default function App() {
                   </div>
                 </section>
               )}
-              <section className="bg-white p-6 rounded-2xl shadow-sm border">
+
+              <section className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border">
                 <h3 className="font-bold mb-4 flex items-center gap-2"><Users className="text-indigo-500 w-5 h-5" />כל המטלות</h3>
                 <div className="space-y-2">
                   {chores.map((chore) => (
-                    <div key={chore.id} className="p-3 border rounded-xl flex items-center justify-between bg-gray-50 group hover:bg-gray-100 transition-colors">
-                      <div>
-                        <span className={`font-bold text-sm ${chore.status === 'approved' ? 'line-through text-gray-400' : ''}`}>
+                    <div key={chore.id} className="p-3 border rounded-xl flex items-center justify-between bg-gray-50 group hover:bg-gray-100 transition-colors gap-2">
+                      <div className="min-w-0 flex-1">
+                        <span className={`font-bold text-sm truncate block ${chore.status === 'approved' ? 'line-through text-gray-400' : ''}`}>
                           {chore.title} {chore.isRecurring && <RefreshCw className="w-3 h-3 inline text-indigo-400" />}
                         </span>
-                        <p className="text-xs text-gray-500">{chore.assignedTo === 'all' ? 'כולם' : familyConfig.kids?.find((k) => k.id === chore.assignedTo)?.name} | {chore.reward}🪙</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {chore.assignedTo === 'all' ? 'כולם' : familyConfig.kids?.find((k) => k.id === chore.assignedTo)?.name} | {chore.reward}🪙
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${chore.status === 'open' ? 'bg-blue-100 text-blue-700' : chore.status === 'pending_approval' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
-                          {statusLabel[chore.status]}
-                        </span>
+                      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                          chore.status === 'open' ? 'bg-blue-100 text-blue-700' :
+                          chore.status === 'pending_approval' ? 'bg-orange-100 text-orange-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>{statusLabel[chore.status]}</span>
                         {chore.status === 'open' && (
-                          <button onClick={() => handleDeleteChore(chore.id)} className="text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleDeleteChore(chore.id)} className="text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         )}
                       </div>
                     </div>
@@ -696,14 +745,18 @@ export default function App() {
       <Header />
       {showConfetti && <Confetti />}
 
+      {/* Photo proof modal — slides up from bottom on mobile */}
       {completingChoreId && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center shadow-2xl">
-            <h3 className="font-bold text-xl mb-1">תמונה להורים? 📷</h3>
-            <p className="text-sm text-gray-400 mb-4">אופציונלי — תמונה כהוכחה</p>
-            <div className="relative border-2 border-dashed rounded-xl bg-gray-50 h-40 mb-4 flex items-center justify-center overflow-hidden">
-              <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleImageCapture} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-              {proofImage ? <img src={proofImage} className="w-full h-full object-cover" alt="הוכחה" /> : <span className="text-gray-400 text-sm pointer-events-none">לחצו לצלם תמונה</span>}
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white p-5 sm:p-6 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm text-center shadow-2xl">
+            <h3 className="font-bold text-lg sm:text-xl mb-1">תמונה להורים? 📷</h3>
+            <p className="text-sm text-gray-400 mb-3 sm:mb-4">אופציונלי — תמונה כהוכחה</p>
+            <div className="relative border-2 border-dashed rounded-xl bg-gray-50 h-32 sm:h-40 mb-4 flex items-center justify-center overflow-hidden">
+              <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleImageCapture}
+                className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+              {proofImage
+                ? <img src={proofImage} className="w-full h-full object-cover" alt="הוכחה" />
+                : <span className="text-gray-400 text-sm pointer-events-none">לחצו לצלם תמונה</span>}
             </div>
             <div className="flex gap-2">
               <button onClick={submitChoreCompletion} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold p-3 rounded-xl transition-colors">שליחה ✅</button>
@@ -713,19 +766,23 @@ export default function App() {
         </div>
       )}
 
-      <main className="max-w-2xl mx-auto px-4 mt-6 space-y-5">
-        <section className="bg-gradient-to-br from-emerald-500 to-teal-600 p-8 rounded-2xl shadow-lg text-white">
-          <div className="flex justify-between items-start">
+      <main className="max-w-2xl mx-auto px-3 sm:px-4 mt-4 sm:mt-6 space-y-4 sm:space-y-5">
+        {/* Wallet hero */}
+        <section className="bg-gradient-to-br from-emerald-500 to-teal-600 p-5 sm:p-8 rounded-2xl shadow-lg text-white">
+          <div className="flex justify-between items-start gap-3">
             <div>
-              <p className="opacity-75 text-sm uppercase tracking-wider mb-1">הארנק שלי</p>
-              <div className="text-6xl font-black flex items-center gap-2">{childConfig?.balance || 0}<Coins className="text-yellow-300 w-12 h-12" /></div>
-              <p className="opacity-70 text-sm mt-1">מטבעות שנצברו</p>
+              <p className="opacity-75 text-xs sm:text-sm uppercase tracking-wider mb-1">הארנק שלי</p>
+              <div className="text-5xl sm:text-6xl font-black flex items-center gap-2">
+                {childConfig?.balance || 0}
+                <Coins className="text-yellow-300 w-10 h-10 sm:w-12 sm:h-12" />
+              </div>
+              <p className="opacity-70 text-xs sm:text-sm mt-1">מטבעות שנצברו</p>
             </div>
-            <div className="text-right">
-              <div className="text-4xl mb-1">{childConfig?.avatar || '🧒'}</div>
+            <div className="text-right shrink-0">
+              <div className="text-3xl sm:text-4xl mb-1">{childConfig?.avatar || '🧒'}</div>
               {(childConfig?.streak || 0) > 1 && (
-                <div className="bg-white/20 rounded-xl px-3 py-1 text-center">
-                  <div className="text-xl font-black">🔥{childConfig.streak}</div>
+                <div className="bg-white/20 rounded-xl px-2 sm:px-3 py-1 text-center">
+                  <div className="text-lg sm:text-xl font-black">🔥{childConfig.streak}</div>
                   <div className="text-xs opacity-80">ימים ברצף</div>
                 </div>
               )}
@@ -733,80 +790,112 @@ export default function App() {
           </div>
         </section>
 
+        {/* Rejection feedback */}
         {rejected.length > 0 && (
-          <section className="bg-red-50 p-5 rounded-2xl border border-red-200">
-            <h3 className="font-bold text-red-800 mb-3 flex items-center gap-2"><X className="w-4 h-4" />חזרו אלייך לתיקון</h3>
+          <section className="bg-red-50 p-4 sm:p-5 rounded-2xl border border-red-200">
+            <h3 className="font-bold text-red-800 mb-3 flex items-center gap-2 text-sm sm:text-base">
+              <X className="w-4 h-4" />חזרו אלייך לתיקון
+            </h3>
             {rejected.map((c) => (
               <div key={c.id} className="bg-white p-3 rounded-xl border border-red-100 mb-2">
-                <p className="font-bold text-gray-800">{c.title}</p>
-                <p className="text-sm text-red-600 mt-1"><span className="font-bold">הורה:</span> {c.rejectionNote}</p>
+                <p className="font-bold text-gray-800 text-sm sm:text-base">{c.title}</p>
+                <p className="text-xs sm:text-sm text-red-600 mt-1"><span className="font-bold">הורה:</span> {c.rejectionNote}</p>
                 <button onClick={() => setCompletingChoreId(c.id)} className="mt-2 text-sm bg-red-100 hover:bg-red-200 text-red-700 font-bold py-1.5 px-4 rounded-lg transition-colors">שלח שוב</button>
               </div>
             ))}
           </section>
         )}
 
-        <section className="bg-white p-6 rounded-2xl shadow-sm border">
-          <h3 className="font-bold mb-4 flex items-center gap-2 text-xl"><CheckCircle className="text-emerald-500 w-6 h-6" />מטלות פתוחות</h3>
+        {/* Open chores */}
+        <section className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border">
+          <h3 className="font-bold mb-4 flex items-center gap-2 text-lg sm:text-xl">
+            <CheckCircle className="text-emerald-500 w-5 h-5 sm:w-6 sm:h-6" />מטלות פתוחות
+          </h3>
           <div className="space-y-3">
             {availableChores.filter((c) => !c.rejectionNote).map((chore) => (
-              <div key={chore.id} className="bg-gray-50 p-4 rounded-xl border flex flex-col sm:flex-row justify-between items-center gap-3 hover:border-emerald-200 transition-colors">
-                <div><h4 className="font-bold">{chore.title}</h4><p className="text-emerald-600 font-bold text-sm flex items-center gap-1">{chore.reward}<Coins className="w-4 h-4 text-yellow-500" />מטבעות</p></div>
-                <button onClick={() => setCompletingChoreId(chore.id)} className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold py-2.5 px-6 rounded-xl flex items-center justify-center gap-2 transition-all">
-                  <Check className="w-5 h-5" />עשיתי!
+              <div key={chore.id} className="bg-gray-50 p-3 sm:p-4 rounded-xl border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3 hover:border-emerald-200 transition-colors">
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-sm sm:text-base">{chore.title}</h4>
+                  <p className="text-emerald-600 font-bold text-sm flex items-center gap-1">
+                    {chore.reward}<Coins className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />מטבעות
+                  </p>
+                </div>
+                <button onClick={() => setCompletingChoreId(chore.id)}
+                  className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold py-2 sm:py-2.5 px-5 sm:px-6 rounded-xl flex items-center justify-center gap-2 transition-all text-sm sm:text-base shrink-0">
+                  <Check className="w-4 h-4 sm:w-5 sm:h-5" />עשיתי!
                 </button>
               </div>
             ))}
-            {availableChores.filter((c) => !c.rejectionNote).length === 0 && <p className="text-center text-gray-400 py-6 text-lg">🎉 אין מטלות פתוחות כרגע!</p>}
+            {availableChores.filter((c) => !c.rejectionNote).length === 0 && (
+              <p className="text-center text-gray-400 py-6 text-base sm:text-lg">🎉 אין מטלות פתוחות כרגע!</p>
+            )}
           </div>
         </section>
 
+        {/* Pending approval */}
         {myPending.length > 0 && (
-          <section className="bg-orange-50 p-5 rounded-2xl border border-orange-200">
-            <h3 className="font-bold text-orange-800 mb-3 flex items-center gap-2"><Clock className="w-5 h-5" />ממתינות לאישור ({myPending.length})</h3>
+          <section className="bg-orange-50 p-4 sm:p-5 rounded-2xl border border-orange-200">
+            <h3 className="font-bold text-orange-800 mb-3 flex items-center gap-2 text-sm sm:text-base">
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5" />ממתינות לאישור ({myPending.length})
+            </h3>
             {myPending.map((c) => (
-              <div key={c.id} className="bg-white p-3 rounded-xl border border-orange-100 flex justify-between items-center mb-2 last:mb-0">
-                <div><p className="font-bold text-sm">{c.title}</p><p className="text-xs text-orange-500">{c.reward}🪙 בהמתנה...</p></div>
-                {c.proofImage && <img src={c.proofImage} alt="הוכחה" className="h-10 w-10 object-cover rounded-lg border" />}
+              <div key={c.id} className="bg-white p-3 rounded-xl border border-orange-100 flex justify-between items-center mb-2 last:mb-0 gap-2">
+                <div className="min-w-0">
+                  <p className="font-bold text-sm truncate">{c.title}</p>
+                  <p className="text-xs text-orange-500">{c.reward}🪙 בהמתנה...</p>
+                </div>
+                {c.proofImage && <img src={c.proofImage} alt="הוכחה" className="h-10 w-10 object-cover rounded-lg border shrink-0" />}
               </div>
             ))}
           </section>
         )}
 
-        <section className="bg-white p-5 rounded-2xl shadow-sm border">
-          <button onClick={() => setShowWishlist((v) => !v)} className="w-full flex items-center justify-between font-bold text-lg">
-            <span className="flex items-center gap-2"><Gift className="text-pink-500 w-5 h-5" />רשימת המשאלות שלי</span>
-            {showWishlist ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+        {/* Wishlist */}
+        <section className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border">
+          <button onClick={() => setShowWishlist((v) => !v)} className="w-full flex items-center justify-between font-bold">
+            <span className="flex items-center gap-2 text-base sm:text-lg">
+              <Gift className="text-pink-500 w-4 h-4 sm:w-5 sm:h-5" />רשימת המשאלות שלי
+            </span>
+            {showWishlist ? <ChevronUp className="w-5 h-5 text-gray-400 shrink-0" /> : <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" />}
           </button>
           {showWishlist && (
             <div className="mt-4 space-y-2">
               {(childConfig?.wishlist || []).map((item) => (
-                <div key={item.id} className="flex justify-between items-center bg-pink-50 px-3 py-2 rounded-xl border border-pink-100">
-                  <span className="text-sm font-bold text-pink-800 flex items-center gap-1"><Heart className="w-3 h-3 text-pink-400" />{item.text}</span>
-                  <button onClick={() => handleRemoveWishItem(item.id)} className="text-pink-300 hover:text-pink-500"><X className="w-4 h-4" /></button>
+                <div key={item.id} className="flex justify-between items-center bg-pink-50 px-3 py-2 rounded-xl border border-pink-100 gap-2">
+                  <span className="text-sm font-bold text-pink-800 flex items-center gap-1 min-w-0">
+                    <Heart className="w-3 h-3 text-pink-400 shrink-0" /><span className="truncate">{item.text}</span>
+                  </span>
+                  <button onClick={() => handleRemoveWishItem(item.id)} className="text-pink-300 hover:text-pink-500 shrink-0"><X className="w-4 h-4" /></button>
                 </div>
               ))}
               <div className="flex gap-2 mt-3">
-                <input type="text" value={newWishItem} onChange={(e) => setNewWishItem(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddWishItem()}
-                  className="flex-1 p-2 border rounded-xl text-sm" placeholder="מה תרצה לקנות?" />
-                <button onClick={handleAddWishItem} className="bg-pink-500 hover:bg-pink-600 text-white px-4 rounded-xl text-sm font-bold transition-colors">הוסף</button>
+                <input type="text" value={newWishItem} onChange={(e) => setNewWishItem(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddWishItem()}
+                  className="flex-1 p-2 border rounded-xl text-sm min-w-0" placeholder="מה תרצה לקנות?" />
+                <button onClick={handleAddWishItem} className="bg-pink-500 hover:bg-pink-600 text-white px-3 sm:px-4 rounded-xl text-sm font-bold transition-colors shrink-0">הוסף</button>
               </div>
             </div>
           )}
         </section>
 
+        {/* Completed history */}
         {myCompleted.length > 0 && (
-          <section className="bg-white p-5 rounded-2xl shadow-sm border">
+          <section className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border">
             <button onClick={() => setShowHistory((v) => !v)} className="w-full flex items-center justify-between font-bold">
-              <span className="flex items-center gap-2"><TrendingUp className="text-indigo-400 w-5 h-5" />היסטוריית הישגים ({myCompleted.length})</span>
-              {showHistory ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+              <span className="flex items-center gap-2 text-sm sm:text-base">
+                <TrendingUp className="text-indigo-400 w-4 h-4 sm:w-5 sm:h-5" />היסטוריית הישגים ({myCompleted.length})
+              </span>
+              {showHistory ? <ChevronUp className="w-5 h-5 text-gray-400 shrink-0" /> : <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" />}
             </button>
             {showHistory && (
-              <div className="mt-4 space-y-2 max-h-64 overflow-y-auto">
+              <div className="mt-4 space-y-2 max-h-40 sm:max-h-64 overflow-y-auto">
                 {myCompleted.map((c) => (
-                  <div key={c.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
-                    <span className="flex items-center gap-1"><CheckCircle className="w-4 h-4 text-emerald-500" />{c.title}</span>
-                    <span className="text-emerald-600 font-bold">+{c.reward}🪙</span>
+                  <div key={c.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0 gap-2">
+                    <span className="flex items-center gap-1 min-w-0">
+                      <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span className="truncate">{c.title}</span>
+                    </span>
+                    <span className="text-emerald-600 font-bold shrink-0">+{c.reward}🪙</span>
                   </div>
                 ))}
               </div>
@@ -826,26 +915,31 @@ function FamilySettingsForm({ initialConfig, onSave, onCancel }) {
   return (
     <form onSubmit={handleSave} className="space-y-5">
       <div>
-        <h3 className="font-bold mb-2 text-gray-700">הורים</h3>
+        <h3 className="font-bold mb-2 text-gray-700 text-sm sm:text-base">הורים</h3>
         {parents.map((p, i) => (
-          <input key={i} type="text" value={p.name} onChange={(e) => { const np = [...parents]; np[i] = { ...np[i], name: e.target.value }; setParents(np); }}
+          <input key={i} type="text" value={p.name}
+            onChange={(e) => { const np = [...parents]; np[i] = { ...np[i], name: e.target.value }; setParents(np); }}
             className="w-full p-3 border rounded-xl mb-2" placeholder="שם הורה" />
         ))}
-        {parents.length < 2 && <button type="button" onClick={() => setParents([...parents, { id: 'p' + Date.now(), name: '' }])} className="text-sm text-indigo-600 font-bold">+ הוסף הורה</button>}
+        {parents.length < 2 && (
+          <button type="button" onClick={() => setParents([...parents, { id: 'p' + Date.now(), name: '' }])} className="text-sm text-indigo-600 font-bold">+ הוסף הורה</button>
+        )}
       </div>
       <div>
-        <h3 className="font-bold mb-2 text-gray-700">ילדים</h3>
+        <h3 className="font-bold mb-2 text-gray-700 text-sm sm:text-base">ילדים</h3>
         {kids.map((k, i) => (
           <div key={k.id} className="mb-3 p-3 border rounded-xl bg-gray-50">
             <div className="flex gap-2 mb-2">
-              <input type="text" value={k.name} onChange={(e) => { const nk = [...kids]; nk[i] = { ...nk[i], name: e.target.value }; setKids(nk); }}
-                className="flex-1 p-2 border rounded-xl bg-white text-sm" placeholder="שם ילד" />
-              <button type="button" onClick={() => setKids(kids.filter((_, idx) => idx !== i))} className="p-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-colors"><Trash2 className="w-4 h-4" /></button>
+              <input type="text" value={k.name}
+                onChange={(e) => { const nk = [...kids]; nk[i] = { ...nk[i], name: e.target.value }; setKids(nk); }}
+                className="flex-1 p-2 border rounded-xl bg-white text-sm min-w-0" placeholder="שם ילד" />
+              <button type="button" onClick={() => setKids(kids.filter((_, idx) => idx !== i))}
+                className="p-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-colors shrink-0"><Trash2 className="w-4 h-4" /></button>
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="grid grid-cols-6 gap-1">
               {AVATARS.map((a) => (
                 <button key={a} type="button" onClick={() => { const nk = [...kids]; nk[i] = { ...nk[i], avatar: a }; setKids(nk); }}
-                  className={`text-lg p-1 rounded-lg border-2 transition-all ${k.avatar === a ? 'border-indigo-500 bg-indigo-50' : 'border-transparent hover:border-gray-300'}`}>{a}</button>
+                  className={`text-lg sm:text-xl p-1 rounded-lg border-2 transition-all ${k.avatar === a ? 'border-indigo-500 bg-indigo-50' : 'border-transparent hover:border-gray-300'}`}>{a}</button>
               ))}
             </div>
           </div>
@@ -873,22 +967,29 @@ function PinSettingsForm({ initialConfig, onSave, onCancel }) {
   return (
     <form onSubmit={handleSave} className="space-y-5">
       <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-        <label className="flex items-center gap-2 text-sm font-bold text-indigo-800 mb-2"><ShieldCheck className="w-4 h-4" />קוד הורים (4 ספרות)</label>
+        <label className="flex items-center gap-2 text-sm font-bold text-indigo-800 mb-2">
+          <ShieldCheck className="w-4 h-4" />קוד הורים (4 ספרות)
+        </label>
         <input type="password" inputMode="numeric" maxLength={4} required value={parentPin}
           onChange={(e) => setParentPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
           className="w-full p-3 border rounded-xl text-center text-2xl tracking-[0.5em]" placeholder="••••" />
       </div>
       <div>
-        <h3 className="font-bold mb-1 text-gray-700 flex items-center gap-2"><User className="w-4 h-4 text-emerald-600" />קודי ילדים (אופציונלי)</h3>
+        <h3 className="font-bold mb-1 text-gray-700 text-sm sm:text-base flex items-center gap-2">
+          <User className="w-4 h-4 text-emerald-600" />קודי ילדים (אופציונלי)
+        </h3>
         <p className="text-xs text-gray-400 mb-3">השאר ריק = כניסה חופשית</p>
         {kids.map((k, i) => (
-          <div key={k.id} className="flex items-center gap-3 mb-3">
-            <span className="text-xl">{k.avatar || '🧒'}</span>
-            <span className="flex-1 font-bold text-sm text-gray-700">{k.name}</span>
+          <div key={k.id} className="flex items-center gap-2 sm:gap-3 mb-3">
+            <span className="text-xl shrink-0">{k.avatar || '🧒'}</span>
+            <span className="flex-1 font-bold text-sm text-gray-700 truncate min-w-0">{k.name}</span>
             <input type="password" inputMode="numeric" maxLength={4} value={k.pin}
               onChange={(e) => { const nk = [...kids]; nk[i] = { ...nk[i], pin: e.target.value.replace(/\D/g, '').slice(0, 4) }; setKids(nk); }}
-              className="w-28 p-2 border rounded-xl text-center tracking-widest text-sm" placeholder="ללא קוד" />
-            {k.pin && <button type="button" onClick={() => { const nk = [...kids]; nk[i] = { ...nk[i], pin: '' }; setKids(nk); }} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>}
+              className="w-20 sm:w-28 p-2 border rounded-xl text-center tracking-widest text-sm shrink-0" placeholder="ללא קוד" />
+            {k.pin && (
+              <button type="button" onClick={() => { const nk = [...kids]; nk[i] = { ...nk[i], pin: '' }; setKids(nk); }}
+                className="text-red-400 hover:text-red-600 shrink-0"><X className="w-4 h-4" /></button>
+            )}
           </div>
         ))}
       </div>
