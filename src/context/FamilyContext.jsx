@@ -8,9 +8,10 @@ const FamilyContext = createContext(null);
 
 export function FamilyProvider({ familyId, children }) {
   // ── Data (Vercel KV via API, polling every 3 s) ──────────────────────────
-  const { data: familyConfig, mutate: mutateConfig, isLoading: configLoading } =
+  const { data: familyConfig, mutate: mutateConfig, isLoading: configLoading, error: configError } =
     useSWR(familyId ? `/api/data?type=config&familyId=${familyId}` : null, fetcher, {
       refreshInterval: 3000, revalidateOnFocus: true,
+      shouldRetryOnError: (err) => err?.name !== 'AuthError',
     });
 
   const { data: rawChores, mutate: mutateChores } =
@@ -83,6 +84,7 @@ export function FamilyProvider({ familyId, children }) {
     familyId,
     familyConfig,
     configLoading,
+    configError,
     chores,
     mutateConfig,
     mutateChores,

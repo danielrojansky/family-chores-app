@@ -12,9 +12,17 @@ const authHeaders = () => {
 
 // ─── Data API (family-scoped) ───────────────────────────────────────────────
 
+export class AuthError extends Error {
+  constructor(status, message) { super(message); this.status = status; this.name = 'AuthError'; }
+}
+
 export const fetcher = (url) =>
   fetch(url, { headers: authHeaders() })
-    .then((r) => { if (!r.ok) throw new Error('API error'); return r.json(); });
+    .then((r) => {
+      if (r.status === 401 || r.status === 403) throw new AuthError(r.status, 'Authentication required');
+      if (!r.ok) throw new Error('API error');
+      return r.json();
+    });
 
 export const apiCall = async (action, payload = {}) => {
   const res = await fetch('/api/data', {

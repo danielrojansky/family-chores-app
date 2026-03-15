@@ -66,25 +66,22 @@ function AdminLogin({ onLogin }) {
 
         {/* Google Sign-In for admin */}
         {adminConfig?.googleClientId && adminConfig?.hasAdminEmail && (
-          <>
-            <div ref={googleBtnRef} className="flex justify-center mb-4" />
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex-1 border-t border-gray-200" />
-              <span className="text-xs text-gray-400">או סיסמה</span>
-              <div className="flex-1 border-t border-gray-200" />
-            </div>
-          </>
+          <div ref={googleBtnRef} className="flex justify-center mb-4" />
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 border rounded-xl text-center" placeholder="סיסמה" autoFocus required />
-          {error && <p className="text-red-500 text-sm font-bold">{error}</p>}
-          <button type="submit" disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold p-3 rounded-xl transition-colors">
-            {loading ? 'מתחבר...' : 'כניסה'}
-          </button>
-        </form>
+        {error && <p className="text-red-500 text-sm font-bold mb-3">{error}</p>}
+
+        {/* Password login — only shown when ADMIN_EMAIL is NOT configured */}
+        {!adminConfig?.hasAdminEmail && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-3 border rounded-xl text-center" placeholder="סיסמה" autoFocus required />
+            <button type="submit" disabled={loading}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold p-3 rounded-xl transition-colors">
+              {loading ? 'מתחבר...' : 'כניסה'}
+            </button>
+          </form>
+        )}
         <Link to="/" className="text-xs text-gray-400 hover:text-gray-600 mt-4 inline-block transition-colors">
           חזרה לאפליקציה
         </Link>

@@ -60,6 +60,11 @@ export default async function handler(req, res) {
 
     // ── Login (no auth required) ───────────────────────────────────────────
     if (action === 'login') {
+      // When ADMIN_EMAIL is configured, only Google login is allowed
+      if (ADMIN_EMAIL) {
+        return res.status(403).json({ error: 'כניסה למנהל זמינה רק דרך Google' });
+      }
+
       const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
       if (await checkLimit(loginLimiter, `admin:${ip}`, res)) return;
 
