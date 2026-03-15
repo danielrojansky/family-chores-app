@@ -81,6 +81,27 @@ export default async function handler(req, res) {
           return res.json({ ok: true });
         }
 
+        // ── Parent-generated invite to join this family ───────────────────
+        case 'createFamilyInvite': {
+          const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+          let code = '';
+          for (let i = 0; i < 12; i++) code += chars[Math.floor(Math.random() * chars.length)];
+          const config = await kv.get(configKey(familyId));
+          const familyName = config?.familyName || (config?.parents || []).map(p => p.name).join(' & ') || familyId;
+          const invite = {
+            code,
+            familyName,
+            familyId,        // pre-linked to this family
+            type: 'join',    // join existing family (vs 'create' for new family)
+            createdBy: payload.createdBy || 'parent',
+            createdAt: Date.now(),
+            used: false,
+          };
+          await kv.set(`app:invites:${code}`, invite);
+          await kv.sadd('app:invites:all', code);
+          return res.json({ code, invite });
+        }
+
         default:
           return res.status(400).json({ error: `Unknown action: ${action}` });
       }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Clock, Plus, Users, Coins, Check, X, RefreshCw,
-  Wallet, Trash2, Star, Gift, TrendingUp,
+  Wallet, Trash2, Star, Gift, TrendingUp, Link2, Copy,
 } from 'lucide-react';
 import Header from '../ui/Header';
 import BonusModal from '../modals/BonusModal';
@@ -22,6 +22,9 @@ export default function ParentDashboard() {
   const [newChore, setNewChore] = useState({ title: '', reward: '', assignedTo: 'all', isRecurring: false });
   const [bonusTarget, setBonusTarget] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
+  const [inviteLink, setInviteLink] = useState('');
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   // ── Data handlers ─────────────────────────────────────────────────────────
   const handleAddChore = async (e) => {
@@ -104,6 +107,25 @@ export default function ParentDashboard() {
     logAction(familyId, 'pins.updated', {});
   };
 
+  const handleCreateInvite = async () => {
+    setInviteLoading(true);
+    try {
+      const res = await apiCall('createFamilyInvite', { createdBy: 'parent' });
+      const url = `${window.location.origin}/invite/${res.code}`;
+      setInviteLink(url);
+      logAction(familyId, 'invite.created', { code: res.code, by: 'parent' });
+    } catch (err) {
+      alert(err.message || 'שגיאה ביצירת הזמנה');
+    } finally { setInviteLoading(false); }
+  };
+
+  const handleCopyInvite = () => {
+    navigator.clipboard.writeText(inviteLink).then(() => {
+      setInviteCopied(true);
+      setTimeout(() => setInviteCopied(false), 2000);
+    });
+  };
+
   // ── Settings view ─────────────────────────────────────────────────────────
   if (activeTab === 'settings') return (
     <div dir="rtl" className="min-h-screen bg-gray-50 pb-10">
@@ -120,6 +142,31 @@ export default function ParentDashboard() {
             <Lock className="text-indigo-600 w-5 h-5" />ניהול קודי כניסה
           </h2>
           <PinSettingsForm initialConfig={familyConfig} onSave={handleUpdatePins} onCancel={() => setActiveTab('dashboard')} />
+        </div>
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border">
+          <h2 className="text-base sm:text-lg font-bold mb-4 sm:mb-5 flex items-center gap-2">
+            <Link2 className="text-indigo-600 w-5 h-5" />הזמנת חבר למשפחה
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">צור קישור הזמנה כדי להוסיף חבר משפחה חדש</p>
+          {inviteLink ? (
+            <div className="space-y-3">
+              <div className="bg-gray-50 p-3 rounded-xl border flex items-center gap-2">
+                <input type="text" readOnly value={inviteLink} dir="ltr"
+                  className="flex-1 bg-transparent text-sm text-gray-700 outline-none min-w-0 font-mono" />
+                <button onClick={handleCopyInvite}
+                  className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1 transition-colors">
+                  <Copy className="w-3 h-3" />{inviteCopied ? 'הועתק!' : 'העתק'}
+                </button>
+              </div>
+              <button onClick={() => setInviteLink('')}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors">צור קישור חדש</button>
+            </div>
+          ) : (
+            <button onClick={handleCreateInvite} disabled={inviteLoading}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+              <Link2 className="w-4 h-4" />{inviteLoading ? 'יוצר...' : 'צור קישור הזמנה'}
+            </button>
+          )}
         </div>
       </main>
     </div>

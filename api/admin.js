@@ -89,9 +89,11 @@ export default async function handler(req, res) {
           const parentNames = (config?.parents || []).map((p) => p.name).join(' & ');
           families.push({
             id,
-            name: parentNames || 'משפחה חדשה',
+            name: config?.familyName || parentNames || 'משפחה חדשה',
             kidsCount: config?.kids?.length || 0,
             isSetup: config?.isSetup || false,
+            parents: config?.parents || [],
+            kids: (config?.kids || []).map(k => ({ id: k.id, name: k.name, avatar: k.avatar })),
           });
         }
         return res.json({ families });
@@ -102,6 +104,16 @@ export default async function handler(req, res) {
         const config = await kv.get(`family:${payload.familyId}:config`);
         const chores = await kv.get(`family:${payload.familyId}:chores`);
         return res.json({ config: config || {}, chores: chores || [] });
+      }
+
+      // ── Rename family ─────────────────────────────────────────────────
+      case 'renameFamily': {
+        if (!payload.familyId || !payload.name) return res.status(400).json({ error: 'Missing familyId or name' });
+        const config = await kv.get(`family:${payload.familyId}:config`);
+        if (!config) return res.status(404).json({ error: 'Family not found' });
+        config.familyName = payload.name;
+        await kv.set(`family:${payload.familyId}:config`, config);
+        return res.json({ ok: true });
       }
 
       // ── Delete family ─────────────────────────────────────────────────
@@ -202,20 +214,34 @@ export default async function handler(req, res) {
       }
 
       case 'assignUserToFamily': {
-        const { email, familyId, name: displayName, role } = payload;
+        const { email, familyId, name: displayName, role, memberId } = payload;
         if (!email || !familyId) return res.status(400).json({ error: 'Missing email or familyId' });
 
         const userKey = `app:users:${email.toLowerCase()}`;
         const user = await kv.get(userKey);
         if (!user) return res.status(404).json({ error: 'User not found' });
 
-        // Get family name for display
+        // Get family config for display name and member validation
         const familyConfig = await kv.get(`family:${familyId}:config`);
-        const familyName = displayName || (familyConfig?.parents || []).map(p => p.name).join(' & ') || familyId;
+        const familyName = familyConfig?.familyName || displayName || (familyConfig?.parents || []).map(p => p.name).join(' & ') || familyId;
+
+        // Resolve member name if memberId is provided
+        let memberName = '';
+        if (memberId && familyConfig) {
+          const parent = (familyConfig.parents || []).find(p => p.id === memberId);
+          const kid = (familyConfig.kids || []).find(k => k.id === memberId);
+          memberName = parent?.name || kid?.name || '';
+        }
 
         // Add family to user's list (avoid duplicates)
         user.families = (user.families || []).filter(f => f.familyId !== familyId);
-        user.families.push({ familyId, name: familyName, role: role || 'member' });
+        user.families.push({
+          familyId,
+          name: familyName,
+          role: role || 'member',
+          memberId: memberId || null,       // linked family member profile
+          memberName: memberName || null,
+        });
         await kv.set(userKey, user);
 
         return res.json({ ok: true });

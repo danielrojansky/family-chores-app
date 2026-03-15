@@ -58,6 +58,8 @@ function FamilyManagement({ token }) {
   const [familyDetail, setFamilyDetail] = useState(null);
   const [resetPinData, setResetPinData] = useState(null);
   const [newPin, setNewPin] = useState('');
+  const [editingName, setEditingName] = useState(null);
+  const [editNameValue, setEditNameValue] = useState('');
 
   const loadFamilies = useCallback(async () => {
     try {
@@ -96,6 +98,16 @@ function FamilyManagement({ token }) {
     if (expandedFamily) viewFamily(expandedFamily);
   };
 
+  const renameFamily = async (familyId) => {
+    if (!editNameValue.trim()) return;
+    try {
+      await adminCall('renameFamily', { familyId, newName: editNameValue.trim() }, token);
+      setEditingName(null); setEditNameValue('');
+      await loadFamilies();
+      if (expandedFamily === familyId) viewFamily(familyId);
+    } catch (err) { alert(err.message); }
+  };
+
   if (loading) return <p className="text-center text-gray-400 py-8">טוען...</p>;
 
   return (
@@ -110,11 +122,27 @@ function FamilyManagement({ token }) {
       {families.map((f) => (
         <div key={f.id} className="border rounded-xl overflow-hidden">
           <div className="p-4 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => viewFamily(f.id)}>
-            <div>
-              <p className="font-bold">{f.name || 'משפחה ללא שם'}</p>
-              <p className="text-xs text-gray-400">ID: {f.id}</p>
+            <div className="min-w-0 flex-1">
+              {editingName === f.id ? (
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  <input type="text" value={editNameValue} onChange={(e) => setEditNameValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') renameFamily(f.id); if (e.key === 'Escape') setEditingName(null); }}
+                    className="p-1.5 border rounded-lg text-sm flex-1 min-w-0" autoFocus />
+                  <button onClick={() => renameFamily(f.id)} className="text-xs bg-indigo-600 text-white px-2 py-1 rounded-lg">שמור</button>
+                  <button onClick={() => setEditingName(null)} className="text-xs text-gray-400 hover:text-gray-600">ביטול</button>
+                </div>
+              ) : (
+                <>
+                  <p className="font-bold flex items-center gap-2">
+                    {f.name || 'משפחה ללא שם'}
+                    <button onClick={(e) => { e.stopPropagation(); setEditingName(f.id); setEditNameValue(f.name || ''); }}
+                      className="text-xs text-indigo-500 hover:text-indigo-700 transition-colors">✏️</button>
+                  </p>
+                  <p className="text-xs text-gray-400">ID: {f.id}</p>
+                </>
+              )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <button onClick={(e) => { e.stopPropagation(); deleteFamily(f.id); }}
                 className="p-2 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
             </div>
@@ -208,10 +236,22 @@ function UserManagement({ token }) {
         familyId: assignData.familyId,
         name: assignData.name || '',
         role: assignData.role || 'member',
+        memberId: assignData.memberId || null,
       }, token);
       setAssignData(null);
       await loadData();
     } catch (err) { alert(err.message); }
+  };
+
+  // Get members (parents + kids) for the selected family
+  const getSelectedFamilyMembers = () => {
+    if (!assignData?.familyId) return [];
+    const fam = families.find((f) => f.id === assignData.familyId);
+    if (!fam) return [];
+    const members = [];
+    (fam.parents || []).forEach((p) => members.push({ id: p.id, name: p.name, type: 'הורה' }));
+    (fam.kids || []).forEach((k) => members.push({ id: k.id, name: `${k.avatar || ''} ${k.name}`, type: 'ילד/ה' }));
+    return members;
   };
 
   const removeFromFamily = async (email, familyId) => {
@@ -305,7 +345,7 @@ function UserManagement({ token }) {
             <p className="text-sm text-gray-500 truncate">{assignData.email}</p>
 
             <select value={assignData.familyId}
-              onChange={(e) => setAssignData({ ...assignData, familyId: e.target.value })}
+              onChange={(e) => setAssignData({ ...assignData, familyId: e.target.value, memberId: '' })}
               className="w-full p-3 border rounded-xl">
               <option value="">בחר משפחה</option>
               {families.map((f) => <option key={f.id} value={f.id}>{f.name || f.id}</option>)}
@@ -322,6 +362,20 @@ function UserManagement({ token }) {
               <option value="parent">הורה</option>
               <option value="kid">ילד/ה</option>
             </select>
+
+            {assignData.familyId && getSelectedFamilyMembers().length > 0 && (
+              <div>
+                <label className="text-xs text-gray-500 font-bold mb-1 block">קישור לחבר משפחה (אופציונלי)</label>
+                <select value={assignData.memberId || ''}
+                  onChange={(e) => setAssignData({ ...assignData, memberId: e.target.value })}
+                  className="w-full p-3 border rounded-xl">
+                  <option value="">ללא קישור</option>
+                  {getSelectedFamilyMembers().map((m) => (
+                    <option key={m.id} value={m.id}>{m.name} ({m.type})</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <button onClick={assignFamily} disabled={!assignData.familyId}

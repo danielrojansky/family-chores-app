@@ -36,6 +36,8 @@ export default async function handler(req, res) {
         familyName: invite.familyName,
         used: invite.used || false,
         createdAt: invite.createdAt,
+        type: invite.type || 'create',       // 'create' = new family, 'join' = existing
+        familyId: invite.familyId || null,    // set for 'join' invites
       });
     }
 
@@ -44,17 +46,28 @@ export default async function handler(req, res) {
       const { action, code, config } = req.body;
 
       if (action !== 'accept') return res.status(400).json({ error: 'Unknown action' });
-      if (!code || !config) return res.status(400).json({ error: 'Missing code or config' });
+      if (!code) return res.status(400).json({ error: 'Missing code' });
 
       const invite = await kv.get(`app:invites:${code}`);
       if (!invite) return res.status(404).json({ error: 'Invite not found' });
       if (invite.used) return res.status(400).json({ error: 'Invite already used' });
 
-      // Create the family
-      const familyId = generateFamilyId();
-      await kv.set(`family:${familyId}:config`, config);
-      await kv.set(`family:${familyId}:chores`, []);
-      await kv.sadd('app:families', familyId);
+      let familyId;
+
+      if (invite.type === 'join' && invite.familyId) {
+        // ── Join existing family — no setup needed ──────────────────────
+        familyId = invite.familyId;
+        // Verify family still exists
+        const existing = await kv.get(`family:${familyId}:config`);
+        if (!existing) return res.status(404).json({ error: 'Family no longer exists' });
+      } else {
+        // ── Create new family — requires config ─────────────────────────
+        if (!config) return res.status(400).json({ error: 'Missing config for new family' });
+        familyId = generateFamilyId();
+        await kv.set(`family:${familyId}:config`, config);
+        await kv.set(`family:${familyId}:chores`, []);
+        await kv.sadd('app:families', familyId);
+      }
 
       // Mark invite as used
       invite.used = true;
@@ -62,7 +75,7 @@ export default async function handler(req, res) {
       invite.usedAt = Date.now();
       await kv.set(`app:invites:${code}`, invite);
 
-      return res.json({ familyId });
+      return res.json({ familyId, type: invite.type || 'create' });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
