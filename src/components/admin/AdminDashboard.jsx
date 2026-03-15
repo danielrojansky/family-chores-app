@@ -13,6 +13,36 @@ function AdminLogin({ onLogin }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [adminConfig, setAdminConfig] = useState(null);
+  const googleBtnRef = React.useRef(null);
+
+  // Fetch admin config (google client id, hasAdminEmail)
+  useEffect(() => {
+    fetch('/api/admin').then((r) => r.json()).then(setAdminConfig).catch(() => {});
+  }, []);
+
+  // Google Sign-In for admin
+  useEffect(() => {
+    if (!adminConfig?.googleClientId || !adminConfig?.hasAdminEmail || !window.google?.accounts) return;
+    window.google.accounts.id.initialize({
+      client_id: adminConfig.googleClientId,
+      callback: async (response) => {
+        setError(''); setLoading(true);
+        try {
+          const res = await adminCall('googleLogin', { credential: response.credential });
+          localStorage.setItem(ADMIN_SESSION_KEY, res.token);
+          onLogin(res.token);
+        } catch (err) {
+          setError(err.message || 'שגיאה בהתחברות עם Google');
+        } finally { setLoading(false); }
+      },
+    });
+    if (googleBtnRef.current) {
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        theme: 'outline', size: 'large', width: 300, text: 'signin_with', locale: 'he',
+      });
+    }
+  }, [adminConfig, onLogin]);
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setError(''); setLoading(true);
@@ -32,7 +62,20 @@ function AdminLogin({ onLogin }) {
           <ShieldCheck className="w-8 h-8 text-white" />
         </div>
         <h1 className="text-xl font-bold text-gray-800 mb-1">פאנל ניהול</h1>
-        <p className="text-sm text-gray-400 mb-6">הכנס סיסמת מנהל</p>
+        <p className="text-sm text-gray-400 mb-6">התחבר עם חשבון מנהל</p>
+
+        {/* Google Sign-In for admin */}
+        {adminConfig?.googleClientId && adminConfig?.hasAdminEmail && (
+          <>
+            <div ref={googleBtnRef} className="flex justify-center mb-4" />
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-1 border-t border-gray-200" />
+              <span className="text-xs text-gray-400">או סיסמה</span>
+              <div className="flex-1 border-t border-gray-200" />
+            </div>
+          </>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
             className="w-full p-3 border rounded-xl text-center" placeholder="סיסמה" autoFocus required />

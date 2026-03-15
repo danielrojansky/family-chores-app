@@ -8,9 +8,21 @@ const kv = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 });
 
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase();
+
+// ─── Google token verification ────────────────────────────────────────────────
+async function verifyGoogleToken(credential) {
+  const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (GOOGLE_CLIENT_ID && data.aud !== GOOGLE_CLIENT_ID) return null;
+  return data;
+}
+
 const CORS = {
   'Access-Control-Allow-Origin': process.env.APP_ORIGIN || '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -35,6 +47,12 @@ async function createAdminSession(req) {
 export default async function handler(req, res) {
   Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v));
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // GET: admin config (google client id, whether google admin is set up)
+  if (req.method === 'GET') {
+    return res.json({ googleClientId: GOOGLE_CLIENT_ID, hasAdminEmail: !!ADMIN_EMAIL });
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
@@ -68,6 +86,26 @@ export default async function handler(req, res) {
 
       const token = await createAdminSession(req);
       return res.json({ token });
+    }
+
+    // ── Google login (admin must match ADMIN_EMAIL) ──────────────────────────
+    if (action === 'googleLogin') {
+      const { credential } = payload;
+      if (!credential) return res.status(400).json({ error: 'Missing credential' });
+      if (!ADMIN_EMAIL) return res.status(403).json({ error: 'Admin email not configured' });
+
+      const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+      if (await checkLimit(loginLimiter, `admin:${ip}`, res)) return;
+
+      const googleUser = await verifyGoogleToken(credential);
+      if (!googleUser) return res.status(401).json({ error: 'Google token invalid' });
+
+      if (googleUser.email.toLowerCase() !== ADMIN_EMAIL) {
+        return res.status(403).json({ error: 'אין לך הרשאת מנהל' });
+      }
+
+      const token = await createAdminSession(req);
+      return res.json({ token, email: googleUser.email, name: googleUser.name, picture: googleUser.picture });
     }
 
     // ── All other actions require valid admin session ───────────────────────

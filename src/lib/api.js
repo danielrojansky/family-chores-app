@@ -1,14 +1,25 @@
 import { AUTH_SESSION_KEY } from '../constants';
 
+// ─── Auth token helper ──────────────────────────────────────────────────────
+const getAuthToken = () => {
+  try { return localStorage.getItem(AUTH_SESSION_KEY) || ''; } catch { return ''; }
+};
+
+const authHeaders = () => {
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 // ─── Data API (family-scoped) ───────────────────────────────────────────────
 
 export const fetcher = (url) =>
-  fetch(url).then((r) => { if (!r.ok) throw new Error('API error'); return r.json(); });
+  fetch(url, { headers: authHeaders() })
+    .then((r) => { if (!r.ok) throw new Error('API error'); return r.json(); });
 
 export const apiCall = async (action, payload = {}) => {
   const res = await fetch('/api/data', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ action, ...payload }),
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -75,17 +86,12 @@ export const webauthnCall = async (action, payload = {}, token = '') => {
 
 // ─── Auth API ───────────────────────────────────────────────────────────────
 
-const getAuthToken = () => {
-  try { return localStorage.getItem(AUTH_SESSION_KEY) || ''; } catch { return ''; }
-};
-
 export const authCall = async (action, payload = {}) => {
-  const token = getAuthToken();
   const res = await fetch('/api/auth', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...authHeaders(),
     },
     body: JSON.stringify({ action, ...payload }),
   });
@@ -97,9 +103,8 @@ export const authCall = async (action, payload = {}) => {
 };
 
 export const authGet = async (action) => {
-  const token = getAuthToken();
   const res = await fetch(`/api/auth?action=${action}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: authHeaders(),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
