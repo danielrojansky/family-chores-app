@@ -433,29 +433,47 @@ function UserManagement({ token }) {
 // ─── Invite Management Tab ──────────────────────────────────────────────────
 function InviteManagement({ token }) {
   const [invites, setInvites] = useState([]);
+  const [families, setFamilies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [newFamilyName, setNewFamilyName] = useState('');
   const [copiedCode, setCopiedCode] = useState(null);
+  const [inviteType, setInviteType] = useState('join');
+  const [joinFamilyId, setJoinFamilyId] = useState('');
+  const [newFamilyName, setNewFamilyName] = useState('');
+  const [creating, setCreating] = useState(false);
 
-  const loadInvites = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
-      const res = await adminCall('listInvites', {}, token);
-      setInvites(res.invites || []);
+      const [invRes, famRes] = await Promise.all([
+        adminCall('listInvites', {}, token),
+        adminCall('listFamilies', {}, token),
+      ]);
+      setInvites(invRes.invites || []);
+      setFamilies(famRes.families || []);
     } catch {} finally { setLoading(false); }
   }, [token]);
 
-  useEffect(() => { loadInvites(); }, [loadInvites]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const createInvite = async () => {
-    if (!newFamilyName.trim()) return;
-    await adminCall('createInvite', { familyName: newFamilyName.trim() }, token);
-    setNewFamilyName('');
-    await loadInvites();
+    if (inviteType === 'join' && !joinFamilyId) return;
+    if (inviteType === 'create' && !newFamilyName.trim()) return;
+    setCreating(true);
+    try {
+      if (inviteType === 'join') {
+        await adminCall('createInvite', { type: 'join', familyId: joinFamilyId }, token);
+        setJoinFamilyId('');
+      } else {
+        await adminCall('createInvite', { type: 'create', familyName: newFamilyName.trim() }, token);
+        setNewFamilyName('');
+      }
+      await loadData();
+    } catch (err) { alert(err.message); }
+    finally { setCreating(false); }
   };
 
   const revokeInvite = async (code) => {
     await adminCall('revokeInvite', { code }, token);
-    await loadInvites();
+    await loadData();
   };
 
   const copyLink = (code) => {
@@ -468,31 +486,79 @@ function InviteManagement({ token }) {
 
   if (loading) return <p className="text-center text-gray-400 py-8">טוען...</p>;
 
-  return (
-    <div className="space-y-4">
-      <h2 className="font-bold text-lg flex items-center gap-2"><Link2 className="w-5 h-5 text-indigo-500" />הזמנות</h2>
+  const canCreate = inviteType === 'join' ? !!joinFamilyId : !!newFamilyName.trim();
 
-      <div className="flex gap-2">
-        <input type="text" value={newFamilyName} onChange={(e) => setNewFamilyName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && createInvite()}
-          className="flex-1 p-3 border rounded-xl min-w-0" placeholder="שם משפחה חדשה" />
-        <button onClick={createInvite} disabled={!newFamilyName.trim()}
-          className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold px-4 rounded-xl transition-colors shrink-0">
-          צור הזמנה
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold text-lg flex items-center gap-2"><Link2 className="w-5 h-5 text-indigo-500" />הזמנות</h2>
+        <button onClick={loadData} className="p-2 hover:bg-gray-100 rounded-lg"><RefreshCw className="w-4 h-4 text-gray-400" /></button>
+      </div>
+
+      {/* Create invite form */}
+      <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 space-y-3">
+        <h3 className="font-bold text-sm text-indigo-800">יצירת הזמנה חדשה</h3>
+        <div className="flex gap-2">
+          <button onClick={() => setInviteType('join')}
+            className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-colors ${
+              inviteType === 'join' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'
+            }`}>
+            <UserPlus className="w-4 h-4 inline ml-1" />הצטרפות למשפחה
+          </button>
+          <button onClick={() => setInviteType('create')}
+            className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-colors ${
+              inviteType === 'create' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'
+            }`}>
+            <Users className="w-4 h-4 inline ml-1" />משפחה חדשה
+          </button>
+        </div>
+
+        {inviteType === 'join' && (
+          <div>
+            <label className="text-xs text-indigo-700 font-bold mb-1 block">בחר משפחה קיימת</label>
+            <select value={joinFamilyId} onChange={(e) => setJoinFamilyId(e.target.value)}
+              className="w-full p-3 border rounded-xl bg-white">
+              <option value="">בחר משפחה...</option>
+              {families.map((f) => <option key={f.id} value={f.id}>{f.name || f.id}</option>)}
+            </select>
+            <p className="text-xs text-indigo-500 mt-1">המוזמן יצטרף ישירות למשפחה הזו</p>
+          </div>
+        )}
+
+        {inviteType === 'create' && (
+          <div>
+            <label className="text-xs text-indigo-700 font-bold mb-1 block">שם למשפחה החדשה</label>
+            <input type="text" value={newFamilyName} onChange={(e) => setNewFamilyName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && canCreate && createInvite()}
+              className="w-full p-3 border rounded-xl bg-white" placeholder="למשל: משפחת כהן" />
+            <p className="text-xs text-indigo-500 mt-1">המוזמן יגדיר את המשפחה מאפס</p>
+          </div>
+        )}
+
+        <button onClick={createInvite} disabled={!canCreate || creating}
+          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold p-3 rounded-xl transition-colors">
+          {creating ? 'יוצר...' : 'צור הזמנה'}
         </button>
       </div>
 
+      {/* Invites list */}
       {invites.length === 0 && <p className="text-gray-400 text-center py-6">אין הזמנות</p>}
 
       {invites.map((inv) => (
         <div key={inv.code} className={`border rounded-xl p-4 ${inv.used ? 'bg-gray-50 opacity-60' : 'bg-white'}`}>
           <div className="flex items-center justify-between mb-1">
-            <span className="font-bold text-sm">{inv.familyName}</span>
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-bold text-sm truncate">{inv.familyName}</span>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                inv.type === 'join' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'
+              }`}>{inv.type === 'join' ? 'הצטרפות' : 'משפחה חדשה'}</span>
+            </div>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${
               inv.used ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
             }`}>{inv.used ? 'נוצלה' : 'פעילה'}</span>
           </div>
           <p className="text-xs text-gray-400 mb-2 font-mono">{inv.code}</p>
+          {inv.usedBy && <p className="text-xs text-gray-400 mb-1">נוצלה ע״י: {inv.usedBy}</p>}
           {!inv.used && (
             <div className="flex gap-2">
               <button onClick={() => copyLink(inv.code)}

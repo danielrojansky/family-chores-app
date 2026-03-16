@@ -234,13 +234,26 @@ export default async function handler(req, res) {
       case 'createInvite': {
         const { generateInviteCode } = await import('./_lib/security.js');
         const code = generateInviteCode();
+        const inviteType = payload.type === 'join' ? 'join' : 'create';
+
+        let familyName = payload.familyName?.trim().slice(0, 50) || '';
+        let familyId = null;
+
+        if (inviteType === 'join') {
+          if (!payload.familyId) return res.status(400).json({ error: 'Missing familyId for join invite' });
+          familyId = payload.familyId;
+          const config = await kv.get(`family:${familyId}:config`);
+          if (!config) return res.status(404).json({ error: 'Family not found' });
+          familyName = config.familyName || (config.parents || []).map((p) => p.name).join(' & ') || familyId;
+        }
+
         const invite = {
           code,
-          familyName: payload.familyName?.trim().slice(0, 50) || '',
-          type: 'create',
+          familyName: familyName || 'המשפחה שלי',
+          type: inviteType,
           createdAt: Date.now(),
           used: false,
-          familyId: null,
+          familyId,
         };
         await kv.set(`app:invites:${code}`, invite);
         await kv.sadd('app:invites:all', code);
