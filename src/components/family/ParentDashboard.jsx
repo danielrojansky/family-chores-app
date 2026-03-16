@@ -125,10 +125,16 @@ export default function ParentDashboard() {
     await mutateConfig(); setActiveTab('dashboard');
   };
 
-  const handleUpdatePins = async (parentPin, updatedKids) => {
-    await apiCall('updateConfig', { patch: { parentPin, kids: updatedKids } });
-    await mutateConfig(); setActiveTab('dashboard');
-    logAction(familyId, 'pins.updated', {});
+  const handleUpdateParentPin = async (parentPin) => {
+    await apiCall('updateConfig', { patch: { parentPin } });
+    await mutateConfig();
+    logAction(familyId, 'pins.parent_updated', {});
+  };
+
+  const handleUpdateKidPins = async (updatedKids) => {
+    await apiCall('updateConfig', { patch: { kids: updatedKids } });
+    await mutateConfig();
+    logAction(familyId, 'pins.kids_updated', {});
   };
 
   const handleCreateInvite = async () => {
@@ -213,7 +219,7 @@ export default function ParentDashboard() {
               כהורה שמחובר דרך Google, לא תידרש להזין קוד בכניסה
             </div>
           )}
-          <PinSettingsForm initialConfig={familyConfig} onSave={handleUpdatePins} onCancel={() => setActiveTab('dashboard')} />
+          <PinSettingsForm initialConfig={familyConfig} onSaveParentPin={handleUpdateParentPin} onSaveKidPins={handleUpdateKidPins} onCancel={() => setActiveTab('dashboard')} />
         </div>
         <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border">
           <h2 className="text-base sm:text-lg font-bold mb-4 sm:mb-5 flex items-center gap-2">
