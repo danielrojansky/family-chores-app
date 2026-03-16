@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Lock, Plus, Trash2 } from 'lucide-react';
 import { AVATARS } from '../../constants';
 
-export default function FamilySetup({ onSetup }) {
+export default function FamilySetup({ onSetup, defaultFamilyName }) {
   const [setupData, setSetupData] = useState({
-    familyName: '', parent1: 'אבא', parent2: 'אמא', parentPin: '',
+    familyName: defaultFamilyName || 'המשפחה שלי', parent1: 'אבא', parent2: 'אמא', parentPin: '',
     kids: [{ id: 'k1', name: 'ילד 1', balance: 0, pin: '', avatar: '🦁' }],
   });
 

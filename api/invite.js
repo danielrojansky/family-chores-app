@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis';
+import { getUserSession } from './_lib/auth.js';
 
 const kv = new Redis({
   url: process.env.KV_REST_API_URL,
@@ -6,9 +7,9 @@ const kv = new Redis({
 });
 
 const CORS = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': process.env.APP_ORIGIN || '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 // Generate short family ID
@@ -36,8 +37,8 @@ export default async function handler(req, res) {
         familyName: invite.familyName,
         used: invite.used || false,
         createdAt: invite.createdAt,
-        type: invite.type || 'create',       // 'create' = new family, 'join' = existing
-        familyId: invite.familyId || null,    // set for 'join' invites
+        type: invite.type || 'create',
+        familyId: invite.familyId || null,
       });
     }
 
@@ -52,30 +53,53 @@ export default async function handler(req, res) {
       if (!invite) return res.status(404).json({ error: 'Invite not found' });
       if (invite.used) return res.status(400).json({ error: 'Invite already used' });
 
+      // ── Require authentication — must know who is joining ──────────────
+      const session = await getUserSession(req, kv);
+      if (!session) return res.status(401).json({ error: 'יש להתחבר לפני קבלת הזמנה' });
+
       let familyId;
+      let familyName = invite.familyName || 'המשפחה שלי';
 
       if (invite.type === 'join' && invite.familyId) {
-        // ── Join existing family — no setup needed ──────────────────────
+        // ── Join existing family ──────────────────────────────────────────
         familyId = invite.familyId;
-        // Verify family still exists
         const existing = await kv.get(`family:${familyId}:config`);
         if (!existing) return res.status(404).json({ error: 'Family no longer exists' });
+        familyName = existing.familyName || invite.familyName || 'המשפחה שלי';
       } else {
-        // ── Create new family — requires config ─────────────────────────
+        // ── Create new family ─────────────────────────────────────────────
         if (!config) return res.status(400).json({ error: 'Missing config for new family' });
         familyId = generateFamilyId();
+        if (!config.familyName) config.familyName = invite.familyName || 'המשפחה שלי';
         await kv.set(`family:${familyId}:config`, config);
         await kv.set(`family:${familyId}:chores`, []);
         await kv.sadd('app:families', familyId);
       }
 
-      // Mark invite as used
+      // ── Add family to user's families array ─────────────────────────────
+      const userKey = `app:users:${session.email}`;
+      const user = await kv.get(userKey);
+      if (user) {
+        const alreadyMember = (user.families || []).some((f) => f.familyId === familyId);
+        if (!alreadyMember) {
+          user.families = [...(user.families || []), {
+            familyId,
+            name: familyName,
+            role: 'member',
+            joinedAt: Date.now(),
+          }];
+          await kv.set(userKey, user);
+        }
+      }
+
+      // ── Mark invite as used ─────────────────────────────────────────────
       invite.used = true;
       invite.familyId = familyId;
       invite.usedAt = Date.now();
+      invite.usedBy = session.email;
       await kv.set(`app:invites:${code}`, invite);
 
-      return res.json({ familyId, type: invite.type || 'create' });
+      return res.json({ familyId, familyName, type: invite.type || 'create' });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

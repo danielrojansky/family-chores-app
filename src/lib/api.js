@@ -62,8 +62,11 @@ export const inviteCall = async (action, payload = {}) => {
 
   const res = await fetch(url, {
     method,
+    headers: {
+      ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+      ...authHeaders(),
+    },
     ...(method === 'POST' ? {
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, ...payload }),
     } : {}),
   });

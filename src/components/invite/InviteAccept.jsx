@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Users, CheckCircle } from 'lucide-react';
+import { Users, CheckCircle, LogIn } from 'lucide-react';
 import { inviteCall } from '../../lib/api';
 import { logAction } from '../../lib/logger';
+import { useAuth } from '../../context/AuthContext';
 import FamilySetup from '../family/FamilySetup';
+import LoginPage from '../auth/LoginPage';
 
 export default function InviteAccept() {
   const { code } = useParams();
   const navigate = useNavigate();
+  const { user, isAuthenticated, loading: authLoading, refreshUser } = useAuth();
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [needsLogin, setNeedsLogin] = useState(false);
 
+  // ── Load invite details ─────────────────────────────────────────────────
   useEffect(() => {
     if (!code) return;
     inviteCall('getInvite', { code })
@@ -20,36 +25,72 @@ export default function InviteAccept() {
       .catch((err) => { setError(err.message || 'הזמנה לא תקפה'); setLoading(false); });
   }, [code]);
 
-  // ── Accept a "join" invite (existing family) ──────────────────────────────
+  // ── Accept a "join" invite (existing family) ────────────────────────────
   const handleJoin = async () => {
+    if (!isAuthenticated) {
+      setNeedsLogin(true);
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await inviteCall('accept', { code });
+      // Refresh user context so families list is updated
+      await refreshUser();
       logAction(res.familyId, 'invite.joined', { inviteCode: code });
       navigate(`/family/${res.familyId}`);
     } catch (err) {
-      alert(err.message || 'שגיאה בהצטרפות למשפחה');
+      if (err.message?.includes('להתחבר')) {
+        setNeedsLogin(true);
+      } else {
+        setError(err.message || 'שגיאה בהצטרפות למשפחה');
+      }
     } finally { setSubmitting(false); }
   };
 
-  // ── Accept a "create" invite (new family setup) ───────────────────────────
+  // ── Accept a "create" invite (new family setup) ─────────────────────────
   const handleSetup = async (config) => {
+    if (!isAuthenticated) {
+      setNeedsLogin(true);
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await inviteCall('accept', { code, config });
+      await refreshUser();
       logAction(res.familyId, 'setup.complete', { inviteCode: code });
       navigate(`/family/${res.familyId}`);
     } catch (err) {
-      alert(err.message || 'שגיאה ביצירת המשפחה');
+      if (err.message?.includes('להתחבר')) {
+        setNeedsLogin(true);
+      } else {
+        setError(err.message || 'שגיאה ביצירת המשפחה');
+      }
     } finally { setSubmitting(false); }
   };
 
-  if (loading) return (
+  // ── Loading states ──────────────────────────────────────────────────────
+  if (authLoading || loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="animate-spin w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full" />
     </div>
   );
 
+  // ── Need to log in first ────────────────────────────────────────────────
+  if (needsLogin || (!isAuthenticated && invite && !invite.used)) {
+    return (
+      <div>
+        <div dir="rtl" className="text-center py-3 bg-indigo-600 text-white">
+          <p className="text-sm">
+            <LogIn className="w-4 h-4 inline ml-1" />
+            יש להתחבר כדי לקבל את ההזמנה ל<strong>{invite?.familyName || 'משפחה'}</strong>
+          </p>
+        </div>
+        <LoginPage />
+      </div>
+    );
+  }
+
+  // ── Error or invalid invite ─────────────────────────────────────────────
   if (error || !invite || invite.used) return (
     <div dir="rtl" className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-sm w-full">
@@ -63,7 +104,7 @@ export default function InviteAccept() {
     </div>
   );
 
-  // ── "Join" invite — simple confirmation page ──────────────────────────────
+  // ── "Join" invite — simple confirmation page ────────────────────────────
   if (invite.type === 'join' && invite.familyId) {
     return (
       <div dir="rtl" className="min-h-screen bg-indigo-50 flex items-center justify-center p-4">
@@ -78,7 +119,10 @@ export default function InviteAccept() {
           </div>
           <h1 className="text-2xl font-bold text-indigo-900 mb-2">הצטרפות למשפחה</h1>
           <p className="text-gray-600 mb-1">הוזמנת להצטרף ל:</p>
-          <p className="text-xl font-bold text-indigo-700 mb-6">{invite.familyName}</p>
+          <p className="text-xl font-bold text-indigo-700 mb-2">{invite.familyName}</p>
+          {user && (
+            <p className="text-sm text-gray-400 mb-6">מחובר כ: {user.name || user.email}</p>
+          )}
           <button onClick={handleJoin} disabled={submitting}
             className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-colors text-lg mb-3">
             <CheckCircle className="inline w-5 h-5 ml-2" />הצטרף עכשיו
@@ -89,7 +133,7 @@ export default function InviteAccept() {
     );
   }
 
-  // ── "Create" invite — full family setup form ──────────────────────────────
+  // ── "Create" invite — full family setup form ────────────────────────────
   return (
     <div className="relative">
       {submitting && (
@@ -98,9 +142,10 @@ export default function InviteAccept() {
         </div>
       )}
       <div dir="rtl" className="text-center py-4 bg-indigo-600 text-white">
-        <p className="text-sm">הוזמנת להצטרף! שם משפחה: <strong>{invite.familyName}</strong></p>
+        <p className="text-sm">הוזמנת להקים משפחה חדשה: <strong>{invite.familyName}</strong></p>
+        {user && <p className="text-xs text-indigo-200 mt-1">מחובר כ: {user.name || user.email}</p>}
       </div>
-      <FamilySetup onSetup={handleSetup} />
+      <FamilySetup onSetup={handleSetup} defaultFamilyName={invite.familyName} />
     </div>
   );
 }
